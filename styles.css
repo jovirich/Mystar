@@ -772,8 +772,45 @@ body {
   transform: scale(1.15);
 }
 
+.carousel__footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.carousel__play {
+  font-family: "Cinzel", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.05em;
+  color: var(--gold);
+  background: rgba(11, 7, 32, 0.6);
+  border: 1px solid var(--panel-edge);
+  border-radius: 999px;
+  padding: 0.4rem 1.1rem;
+  cursor: pointer;
+  transition: border-color 0.2s, transform 0.12s, background 0.2s, color 0.2s;
+}
+
+.carousel__play:hover {
+  border-color: var(--gold-soft);
+  transform: translateY(-1px);
+}
+
+.carousel__play[aria-pressed="true"] {
+  color: #1a1030;
+  background: linear-gradient(160deg, var(--gold) 0%, var(--gold-soft) 100%);
+  border-color: var(--gold);
+}
+
+.carousel__play:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
 .carousel--single .carousel__nav,
-.carousel--single .carousel__dots {
+.carousel--single .carousel__dots,
+.carousel--single .carousel__play {
   display: none;
 }
 

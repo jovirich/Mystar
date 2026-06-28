@@ -138,6 +138,7 @@ function shuffle(arr) {
 function shuffleDeck() {
   deck = shuffle([...DECK]);
   state.current = null;
+  stopAutoplay();
   carousel.track = null;
   els.reading.hidden = true;
   els.reading.innerHTML = "";
@@ -255,7 +256,11 @@ function presentReading(reading, { deal = true, speak = true, save = false, stat
 }
 
 // --- Carousel: one slide per card (artwork + its meaning) ---
-const carousel = { index: 0, count: 0, revealed: null, track: null, slides: [], dots: [], prevBtn: null, nextBtn: null };
+const AUTOPLAY_MS = 5200;
+const carousel = {
+  index: 0, count: 0, revealed: null, track: null, slides: [], dots: [],
+  prevBtn: null, nextBtn: null, playBtn: null, playing: false, timer: null,
+};
 
 function cardFlipHtml(card, reversed) {
   return `
@@ -309,13 +314,70 @@ function addSwipe(el) {
   const end = (x) => {
     if (x0 === null) return;
     const dx = x - x0;
-    if (Math.abs(dx) > 40) carouselGoTo(carousel.index + (dx < 0 ? 1 : -1));
+    if (Math.abs(dx) > 40) carouselUserGo(carousel.index + (dx < 0 ? 1 : -1));
     x0 = null;
   };
   el.addEventListener("touchstart", (e) => start(e.touches[0].clientX), { passive: true });
   el.addEventListener("touchend", (e) => end(e.changedTouches[0].clientX));
   el.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") start(e.clientX); });
   el.addEventListener("pointerup", (e) => { if (e.pointerType === "mouse") end(e.clientX); });
+}
+
+// Any manual navigation cancels auto-play.
+function carouselUserGo(i) {
+  stopAutoplay();
+  carouselGoTo(i);
+}
+
+// --- Auto-play: a guided walkthrough that advances and narrates each card ---
+function cardToText(reading, i) {
+  const drawn = resolveCards(reading);
+  const { card, reversed } = drawn[i];
+  const orient = reversed ? "reversed" : "upright";
+  const prefix = drawn.length === 3 ? `${POSITIONS[i]}. ` : "";
+  return `${prefix}${card.name}, ${orient}. ${card[orient][reading.areaKey]}`;
+}
+function narrateCurrentCard() {
+  if (state.current) speak(cardToText(state.current, carousel.index));
+}
+function updatePlayButton() {
+  if (!carousel.playBtn) return;
+  carousel.playBtn.textContent = carousel.playing ? "⏸ Pause" : "▶ Play";
+  carousel.playBtn.setAttribute("aria-pressed", String(carousel.playing));
+}
+function scheduleAutoplay() {
+  clearTimeout(carousel.timer);
+  carousel.timer = setTimeout(() => {
+    if (!carousel.playing) return;
+    if (carousel.index < carousel.count - 1) {
+      carouselGoTo(carousel.index + 1);
+      narrateCurrentCard();
+      // Stop once we've landed on the final card (its narration still plays).
+      if (carousel.index < carousel.count - 1) scheduleAutoplay();
+      else stopAutoplay();
+    } else {
+      stopAutoplay();
+    }
+  }, AUTOPLAY_MS);
+}
+function startAutoplay() {
+  if (carousel.count < 2) return;
+  carousel.playing = true;
+  updatePlayButton();
+  if (carousel.index >= carousel.count - 1) carouselGoTo(0);
+  narrateCurrentCard();
+  scheduleAutoplay();
+}
+function stopAutoplay() {
+  if (!carousel.playing && !carousel.timer) return;
+  carousel.playing = false;
+  clearTimeout(carousel.timer);
+  carousel.timer = null;
+  updatePlayButton();
+}
+function toggleAutoplay() {
+  if (carousel.playing) stopAutoplay();
+  else startAutoplay();
 }
 
 // Card artwork: Rider–Waite–Smith scans live in ./cards/<id>.jpg.
@@ -390,14 +452,15 @@ function buildReading(reading, { speak = true } = {}) {
   }
 
   // Carousel — each card travels with its own meaning.
+  stopAutoplay();
   const single = drawn.length === 1;
   const carouselEl = document.createElement("div");
   carouselEl.className = "carousel" + (single ? " carousel--single" : "");
   carouselEl.tabIndex = 0;
 
-  const prevBtn = mkButton("‹", "carousel__nav carousel__nav--prev", () => carouselGoTo(carousel.index - 1));
+  const prevBtn = mkButton("‹", "carousel__nav carousel__nav--prev", () => carouselUserGo(carousel.index - 1));
   prevBtn.setAttribute("aria-label", "Previous card");
-  const nextBtn = mkButton("›", "carousel__nav carousel__nav--next", () => carouselGoTo(carousel.index + 1));
+  const nextBtn = mkButton("›", "carousel__nav carousel__nav--next", () => carouselUserGo(carousel.index + 1));
   nextBtn.setAttribute("aria-label", "Next card");
 
   const viewport = document.createElement("div");
@@ -439,6 +502,14 @@ function buildReading(reading, { speak = true } = {}) {
   stage.append(prevBtn, viewport, nextBtn);
   carouselEl.appendChild(stage);
 
+  const footer = document.createElement("div");
+  footer.className = "carousel__footer";
+
+  const playBtn = mkButton("▶ Play", "carousel__play", toggleAutoplay);
+  playBtn.id = "autoplay-btn";
+  playBtn.setAttribute("aria-pressed", "false");
+  playBtn.setAttribute("aria-label", "Auto-play the spread");
+
   const dotsWrap = document.createElement("div");
   dotsWrap.className = "carousel__dots";
   const dots = drawn.map((_, i) => {
@@ -446,28 +517,29 @@ function buildReading(reading, { speak = true } = {}) {
     d.type = "button";
     d.className = "carousel__dot";
     d.setAttribute("aria-label", `Go to card ${i + 1}`);
-    d.addEventListener("click", () => carouselGoTo(i));
+    d.addEventListener("click", () => carouselUserGo(i));
     dotsWrap.appendChild(d);
     return d;
   });
-  carouselEl.appendChild(dotsWrap);
+  footer.append(playBtn, dotsWrap);
+  carouselEl.appendChild(footer);
   els.reading.appendChild(carouselEl);
   els.reading.hidden = false;
 
   carouselEl.addEventListener("keydown", (e) => {
-    if (e.key === "ArrowLeft") { carouselGoTo(carousel.index - 1); e.preventDefault(); }
-    else if (e.key === "ArrowRight") { carouselGoTo(carousel.index + 1); e.preventDefault(); }
+    if (e.key === "ArrowLeft") { carouselUserGo(carousel.index - 1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { carouselUserGo(carousel.index + 1); e.preventDefault(); }
   });
   addSwipe(viewport);
 
   // Wire carousel state and reveal the first card.
   Object.assign(carousel, {
     index: 0, count: drawn.length, revealed: new Set(),
-    track, slides, dots, prevBtn, nextBtn,
+    track, slides, dots, prevBtn, nextBtn, playBtn, playing: false, timer: null,
   });
   carouselGoTo(0);
 
-  setStatus(single ? "Your card is revealed." : "Swipe through Past · Present · Future.");
+  setStatus(single ? "Your card is revealed." : "Swipe or press Play to walk through Past · Present · Future.");
   if (speak) speakReading(reading);
 }
 

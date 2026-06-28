@@ -22,8 +22,11 @@ No build step. No dependencies. Just plain HTML, CSS, and vanilla JavaScript
   real reading. Each card also has keywords and distinct upright **and**
   reversed meanings per area.
 - **Fisher–Yates shuffle** and random upright/reversed orientation on every draw.
-- **3D card-flip reveal** — cards render face-down and flip in sequence;
-  reversed cards are shown rotated 180°.
+- **3D card-flip reveal** — cards render face-down and flip into view; reversed
+  cards are shown rotated 180°.
+- **Swipeable reading carousel** — each card travels with its own meaning.
+  Navigate with arrows, dots, swipe, or the keyboard — or press **Play** to
+  auto-walk Past → Present → Future, narrating each card as it lands.
 - **Read aloud** — the reading is spoken via the Web Speech API, with a
   "read aloud again" button and a mute toggle.
 - **Mystical dark theme** — deep indigo background, gold accents, and an
