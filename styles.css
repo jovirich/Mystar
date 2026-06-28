@@ -1,0 +1,484 @@
+/* styles.css — Mystery tarot app. Mystical dark theme. */
+
+:root {
+  --bg-top: #0b0720;
+  --bg-bottom: #150d35;
+  --gold: #e7c873;
+  --gold-soft: #c9a94e;
+  --ink: #ece8ff;
+  --ink-dim: #b6aedd;
+  --panel: rgba(22, 14, 54, 0.72);
+  --panel-edge: rgba(231, 200, 115, 0.28);
+  --card-back: linear-gradient(150deg, #241652 0%, #160d36 60%, #0b0720 100%);
+  --card-face: linear-gradient(160deg, #1d1346 0%, #120a30 100%);
+  --shadow: 0 18px 40px rgba(0, 0, 0, 0.55);
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Cormorant Garamond", Georgia, serif;
+  color: var(--ink);
+  background: radial-gradient(120% 120% at 50% 0%, var(--bg-bottom) 0%, var(--bg-top) 70%);
+  background-attachment: fixed;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  line-height: 1.5;
+}
+
+/* ---------- Animated starfield ---------- */
+.starfield {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1.5px 1.5px at 20% 30%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(1.5px 1.5px at 75% 18%, rgba(231, 200, 115, 0.8), transparent),
+    radial-gradient(1px 1px at 40% 70%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1.5px 1.5px at 88% 60%, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 12% 85%, rgba(231, 200, 115, 0.7), transparent),
+    radial-gradient(1px 1px at 60% 45%, rgba(255, 255, 255, 0.6), transparent),
+    radial-gradient(1.5px 1.5px at 30% 55%, rgba(255, 255, 255, 0.7), transparent),
+    radial-gradient(1px 1px at 95% 90%, rgba(255, 255, 255, 0.6), transparent);
+  background-repeat: repeat;
+  background-size: 100% 100%;
+  animation: twinkle 6s ease-in-out infinite alternate;
+}
+
+.starfield::after {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  background-image:
+    radial-gradient(1px 1px at 15% 20%, rgba(255, 255, 255, 0.5), transparent),
+    radial-gradient(1px 1px at 65% 75%, rgba(255, 255, 255, 0.4), transparent),
+    radial-gradient(1px 1px at 85% 35%, rgba(231, 200, 115, 0.5), transparent),
+    radial-gradient(1px 1px at 45% 90%, rgba(255, 255, 255, 0.4), transparent);
+  background-size: 100% 100%;
+  animation: drift 90s linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes twinkle {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
+@keyframes drift {
+  from { transform: translateY(0); }
+  to { transform: translateY(25%); }
+}
+
+/* ---------- Layout ---------- */
+.app {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.app__header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.app__title {
+  font-family: "Cinzel", serif;
+  font-weight: 700;
+  font-size: clamp(2.6rem, 7vw, 4.2rem);
+  letter-spacing: 0.12em;
+  margin: 0;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(231, 200, 115, 0.35);
+}
+
+.app__subtitle {
+  font-size: clamp(1.05rem, 2.4vw, 1.4rem);
+  color: var(--ink-dim);
+  font-style: italic;
+  margin: 0.4rem 0 0;
+}
+
+/* ---------- Controls ---------- */
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.control__label {
+  font-family: "Cinzel", serif;
+  font-size: 0.78rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+
+.select {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.1rem;
+  color: var(--ink);
+  background: rgba(11, 7, 32, 0.85);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  min-width: 200px;
+  cursor: pointer;
+}
+
+.select:focus-visible,
+.btn:focus-visible,
+.segmented__btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Segmented toggle */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(11, 7, 32, 0.85);
+}
+
+.segmented__btn {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1rem;
+  color: var(--ink-dim);
+  background: transparent;
+  border: none;
+  padding: 0.55rem 1rem;
+  cursor: pointer;
+  transition: background 0.25s, color 0.25s;
+}
+
+.segmented__btn.is-active {
+  color: #1a1030;
+  background: linear-gradient(160deg, var(--gold) 0%, var(--gold-soft) 100%);
+  font-weight: 600;
+}
+
+/* Buttons */
+.control--actions {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.btn {
+  font-family: "Cinzel", serif;
+  font-size: 0.95rem;
+  letter-spacing: 0.05em;
+  border-radius: 10px;
+  padding: 0.6rem 1.1rem;
+  cursor: pointer;
+  border: 1px solid var(--panel-edge);
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s, opacity 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn--gold {
+  background: linear-gradient(160deg, var(--gold) 0%, var(--gold-soft) 100%);
+  color: #1a1030;
+  border-color: var(--gold);
+  font-weight: 600;
+  box-shadow: 0 6px 18px rgba(231, 200, 115, 0.25);
+}
+
+.btn--ghost {
+  background: rgba(11, 7, 32, 0.6);
+  color: var(--ink);
+}
+
+.btn--icon {
+  background: rgba(11, 7, 32, 0.6);
+  color: var(--ink-dim);
+}
+
+.btn--icon[aria-pressed="true"] {
+  color: var(--gold);
+  border-color: var(--gold-soft);
+}
+
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ---------- Deck status ---------- */
+.deck-status {
+  text-align: center;
+  font-style: italic;
+  color: var(--ink-dim);
+  margin: 1.4rem 0 1.8rem;
+  letter-spacing: 0.02em;
+}
+
+/* ---------- Spread of cards ---------- */
+.spread {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.6rem;
+  justify-content: center;
+  min-height: 4rem;
+}
+
+.card-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 200px;
+  max-width: 44vw;
+}
+
+.card-slot__position {
+  font-family: "Cinzel", serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+  min-height: 1rem;
+}
+
+/* 3D flip card */
+.card {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  perspective: 1200px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: default;
+}
+
+.card__inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.9s cubic-bezier(0.4, 0.2, 0.2, 1);
+}
+
+.card.is-flipped .card__inner {
+  transform: rotateY(180deg);
+}
+
+.card__face {
+  position: absolute;
+  inset: 0;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--panel-edge);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.8rem;
+  overflow: hidden;
+}
+
+.card__back {
+  background: var(--card-back);
+}
+
+.card__back::before {
+  content: "✶";
+  font-size: 3rem;
+  color: var(--gold);
+  opacity: 0.65;
+  text-shadow: 0 0 16px rgba(231, 200, 115, 0.5);
+}
+
+.card__back::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border: 1px solid rgba(231, 200, 115, 0.3);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.card__front {
+  background: var(--card-face);
+  transform: rotateY(180deg);
+  gap: 0.5rem;
+}
+
+/* Reversed cards: rotate the whole front 180°. */
+.card__front.is-reversed {
+  transform: rotateY(180deg) rotate(180deg);
+}
+
+.card__symbol {
+  font-size: clamp(2.4rem, 9vw, 3.4rem);
+  line-height: 1;
+}
+
+.card__number {
+  font-family: "Cinzel", serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.2em;
+  color: var(--gold-soft);
+}
+
+.card__name {
+  font-family: "Cinzel", serif;
+  font-size: clamp(0.95rem, 3.4vw, 1.2rem);
+  font-weight: 600;
+  color: var(--gold);
+  margin: 0;
+}
+
+.card__orientation {
+  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--ink-dim);
+}
+
+/* ---------- Reading panel ---------- */
+.reading {
+  margin-top: 2.4rem;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1.6rem 1.8rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+  animation: rise 0.6s ease both;
+}
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.reading__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-bottom: 1px solid var(--panel-edge);
+  padding-bottom: 0.8rem;
+  margin-bottom: 1rem;
+}
+
+.reading__title {
+  font-family: "Cinzel", serif;
+  font-size: 1.3rem;
+  color: var(--gold);
+  margin: 0;
+}
+
+.reading__entry {
+  margin: 0 0 1.2rem;
+}
+
+.reading__entry:last-of-type {
+  margin-bottom: 0;
+}
+
+.reading__position {
+  font-family: "Cinzel", serif;
+  font-size: 0.82rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-soft);
+}
+
+.reading__card-name {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.reading__card-name .tag {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--ink-dim);
+  margin-left: 0.4rem;
+}
+
+.reading__keywords {
+  font-style: italic;
+  color: var(--ink-dim);
+  margin: 0.1rem 0 0.45rem;
+}
+
+.meaning {
+  font-size: 1.18rem;
+  margin: 0;
+  color: var(--ink);
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 560px) {
+  .controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .control--actions {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .segmented {
+    width: 100%;
+  }
+  .segmented__btn {
+    flex: 1;
+  }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .starfield,
+  .starfield::after {
+    animation: none;
+  }
+  .card__inner {
+    transition: transform 0.001s linear;
+  }
+  .reading {
+    animation: none;
+  }
+  .btn:hover {
+    transform: none;
+  }
+}
