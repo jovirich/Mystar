@@ -284,12 +284,22 @@ function renderFaceDown(drawn) {
 
     const front = document.createElement("div");
     front.className = "card__face card__front" + (reversed ? " is-reversed" : "");
-    front.innerHTML = `
-      <div class="card__symbol">${card.symbol}</div>
-      <div class="card__number">${romanOrNumber(card.number)}</div>
-      <h3 class="card__name">${card.name}</h3>
-      <div class="card__orientation">${reversed ? "Reversed" : "Upright"}</div>
-    `;
+    const img = document.createElement("img");
+    img.className = "card__art";
+    img.src = cardImage(card);
+    img.alt = `${card.name}${reversed ? ", reversed" : ""}`;
+    img.loading = "lazy";
+    // If the artwork can't load, fall back to the emoji/name layout.
+    img.addEventListener("error", () => {
+      front.classList.add("card__front--fallback");
+      front.innerHTML = `
+        <div class="card__symbol">${card.symbol}</div>
+        <div class="card__number">${romanOrNumber(card.number)}</div>
+        <h3 class="card__name">${card.name}</h3>
+        <div class="card__orientation">${reversed ? "Reversed" : "Upright"}</div>
+      `;
+    });
+    front.appendChild(img);
 
     inner.appendChild(back);
     inner.appendChild(front);
@@ -314,6 +324,11 @@ function flipInSequence(drawn) {
     });
     if (cards.length === 0) resolve();
   });
+}
+
+// Card artwork: Rider–Waite–Smith scans live in ./cards/<id>.jpg.
+function cardImage(card) {
+  return card.image || `./cards/${card.id}.jpg`;
 }
 
 function romanOrNumber(n) {
@@ -693,7 +708,16 @@ function wrapLines(ctx, text, maxWidth) {
   return lines;
 }
 
-function renderReadingImage(reading) {
+function loadImage(src) {
+  return new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.onerror = () => resolve(null);
+    im.src = src;
+  });
+}
+
+async function renderReadingImage(reading) {
   const W = 1080;
   const PAD = 64;
   const inner = W - PAD * 2;
@@ -702,34 +726,45 @@ function renderReadingImage(reading) {
   const drawn = resolveCards(reading);
   const seeker = reading.seeker || {};
   const insight = birthInsight(seeker.dob);
+  const images = await Promise.all(drawn.map(({ card }) => loadImage(cardImage(card))));
 
-  // Measure pass on a throwaway context to compute height.
+  // Build an ordered list of items (text blocks + one artwork gallery).
   const meas = document.createElement("canvas").getContext("2d");
-  const blocks = []; // { type, text, font, color, lh, gapAfter }
-  const push = (text, font, color, lh, gapAfter, indent = 0) => {
+  const items = [];
+  const pushText = (text, font, color, lh, gapAfter) => {
     meas.font = font;
-    const lines = wrapLines(meas, text, inner - indent);
-    blocks.push({ lines, font, color, lh, gapAfter, indent });
+    items.push({ kind: "text", lines: wrapLines(meas, text, inner), font, color, lh, gapAfter });
   };
 
   const greeting = seeker.name ? `${seeker.name}’s ` : "";
   const dailyTag = reading.kind === "daily" ? "Card of the Day — " : "";
-  push(`${dailyTag}${greeting}${area.label} reading`, "600 46px Georgia, serif", "#e7c873", 56, 18);
-  if (seeker.question) push(`“${seeker.question}”`, "italic 30px Georgia, serif", "#ece8ff", 40, 10);
-  if (insight) push(insight.label + " — " + insight.sentence, "26px Georgia, serif", "#b6aedd", 36, 24);
+  pushText(`${dailyTag}${greeting}${area.label} reading`, "600 46px Georgia, serif", "#e7c873", 56, 18);
+  if (seeker.question) pushText(`“${seeker.question}”`, "italic 30px Georgia, serif", "#ece8ff", 40, 10);
+  if (insight) pushText(insight.label + " — " + insight.sentence, "26px Georgia, serif", "#b6aedd", 36, 22);
+
+  // Artwork gallery row.
+  const n = drawn.length;
+  const gGap = 24;
+  const thumbW = Math.min(230, Math.floor((inner - gGap * (n - 1)) / n));
+  const thumbH = Math.round(thumbW * 1.68);
+  if (images.some(Boolean)) {
+    items.push({ kind: "gallery", thumbW, thumbH, gGap, gapAfter: 28 });
+  }
 
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "Reversed" : "Upright";
     const pos = drawn.length === 3 ? `${POSITIONS[i]} · ` : "";
-    push(`${pos}${orient}`, "600 22px Georgia, serif", "#c9a94e", 30, 4);
-    push(`${card.name}`, "600 34px Georgia, serif", "#ece8ff", 44, 4);
-    push(card.keywords[reversed ? "reversed" : "upright"], "italic 24px Georgia, serif", "#b6aedd", 32, 8);
-    push(card[reversed ? "reversed" : "upright"][reading.areaKey], "27px Georgia, serif", "#ece8ff", 38, 26);
+    pushText(`${pos}${orient}`, "600 22px Georgia, serif", "#c9a94e", 30, 4);
+    pushText(`${card.name}`, "600 34px Georgia, serif", "#ece8ff", 44, 4);
+    pushText(card.keywords[reversed ? "reversed" : "upright"], "italic 24px Georgia, serif", "#b6aedd", 32, 8);
+    pushText(card[reversed ? "reversed" : "upright"][reading.areaKey], "27px Georgia, serif", "#ece8ff", 38, 26);
   });
-  push("Mystery · for reflection & entertainment", "italic 22px Georgia, serif", "#8c84b6", 30, 0);
+  pushText("Mystery · for reflection & entertainment", "italic 22px Georgia, serif", "#8c84b6", 30, 0);
 
   let H = PAD * 2;
-  for (const b of blocks) H += b.lines.length * b.lh + b.gapAfter;
+  for (const it of items) {
+    H += it.kind === "gallery" ? it.thumbH + it.gapAfter : it.lines.length * it.lh + it.gapAfter;
+  }
 
   const canvas = document.createElement("canvas");
   canvas.width = W * dpr;
@@ -748,21 +783,41 @@ function renderReadingImage(reading) {
 
   let y = PAD + 12;
   ctx.textBaseline = "top";
-  for (const b of blocks) {
-    ctx.font = b.font;
-    ctx.fillStyle = b.color;
-    for (const line of b.lines) {
-      ctx.fillText(line, PAD + b.indent, y);
-      y += b.lh;
+  for (const it of items) {
+    if (it.kind === "gallery") {
+      const rowW = it.thumbW * n + it.gGap * (n - 1);
+      let x = PAD + (inner - rowW) / 2;
+      drawn.forEach(({ reversed }, i) => {
+        const img = images[i];
+        if (img) {
+          ctx.save();
+          ctx.translate(x + it.thumbW / 2, y + it.thumbH / 2);
+          if (reversed) ctx.rotate(Math.PI);
+          ctx.drawImage(img, -it.thumbW / 2, -it.thumbH / 2, it.thumbW, it.thumbH);
+          ctx.restore();
+        }
+        ctx.strokeStyle = "rgba(231,200,115,0.45)";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, it.thumbW, it.thumbH);
+        x += it.thumbW + it.gGap;
+      });
+      y += it.thumbH + it.gapAfter;
+    } else {
+      ctx.font = it.font;
+      ctx.fillStyle = it.color;
+      for (const line of it.lines) {
+        ctx.fillText(line, PAD, y);
+        y += it.lh;
+      }
+      y += it.gapAfter;
     }
-    y += b.gapAfter;
   }
   return canvas;
 }
 
-function downloadReadingImage(reading) {
+async function downloadReadingImage(reading) {
   try {
-    const canvas = renderReadingImage(reading);
+    const canvas = await renderReadingImage(reading);
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
     a.download = `mystery-reading-${reading.areaKey}.png`;

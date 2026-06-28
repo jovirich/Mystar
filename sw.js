@@ -1,6 +1,12 @@
 // sw.js — service worker for offline support.
 // Cache-first for the app shell so Mystery works without a network.
-const CACHE = "mystery-v1";
+const CACHE = "mystery-v2";
+const CARD_IDS = [
+  "fool", "magician", "high-priestess", "empress", "emperor", "hierophant",
+  "lovers", "chariot", "strength", "hermit", "wheel-of-fortune", "justice",
+  "hanged-man", "death", "temperance", "devil", "tower", "star", "moon",
+  "sun", "judgement", "world",
+];
 const ASSETS = [
   "./",
   "./index.html",
@@ -10,6 +16,7 @@ const ASSETS = [
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
+  ...CARD_IDS.map((id) => `./cards/${id}.jpg`),
 ];
 
 self.addEventListener("install", (event) => {

@@ -17,8 +17,10 @@ No build step. No dependencies. Just plain HTML, CSS, and vanilla JavaScript
 - **Six areas of life** — General, Love, Career, Money, Health, and Spirit,
   each with its own hand-written meaning for every card.
 - **Two spreads** — a Single card, or a Past · Present · Future three-card spread.
-- **Full Major Arcana** — all 22 cards (The Fool → The World), each with a
-  symbol, keywords, and distinct upright **and** reversed meanings per area.
+- **Authentic card art** — all 22 Major Arcana use the classic
+  Rider–Waite–Smith illustrations; reversed cards are shown upside-down, as in a
+  real reading. Each card also has keywords and distinct upright **and**
+  reversed meanings per area.
 - **Fisher–Yates shuffle** and random upright/reversed orientation on every draw.
 - **3D card-flip reveal** — cards render face-down and flip in sequence;
   reversed cards are shown rotated 180°.
@@ -64,6 +66,15 @@ point is that you need a server, not a `file://` path.
 | `manifest.webmanifest` | PWA metadata (installable app) |
 | `sw.js` | Service worker — offline app-shell cache |
 | `icons/` | App icons (192/512) |
+| `cards/` | Card artwork — `<card-id>.jpg` (Rider–Waite–Smith) |
+
+## Credits & licensing
+
+Card images are from the **Rider–Waite–Smith tarot deck**, illustrated by Pamela
+Colman Smith (first published 1909). The artwork is in the **public domain**
+(Smith died in 1951), sourced from
+[Wikimedia Commons](https://commons.wikimedia.org/wiki/Category:Rider-Waite_tarot_deck).
+Images were resized and compressed for the web.
 
 ## Data & privacy
 
