@@ -367,6 +367,11 @@ body {
   padding: 0.6rem 0;
 }
 
+/* Keep the [hidden] attribute authoritative over .deck's display. */
+.deck[hidden] {
+  display: none;
+}
+
 .deck-stack {
   position: relative;
   width: 130px;

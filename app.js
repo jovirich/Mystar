@@ -30,6 +30,7 @@ const els = {
   continueBtn: document.getElementById("continue-btn"),
   skipBtn: document.getElementById("skip-btn"),
   editDetailsBtn: document.getElementById("edit-details-btn"),
+  deck: document.getElementById("deck"),
   deckStack: document.getElementById("deck-stack"),
 };
 
@@ -114,6 +115,7 @@ function shuffleDeck() {
   els.spread.innerHTML = "";
   els.reading.hidden = true;
   els.reading.innerHTML = "";
+  els.deck.hidden = false; // bring the deck back into view to shuffle it
   animateDeck("is-shuffling", 600);
   setStatus(`Deck shuffled · ${deck.length} cards · draw when you're ready.`);
 }
@@ -172,8 +174,12 @@ function draw() {
   const n = state.spread;
   state.drawn = drawCards(n);
 
+  // Show the deck for the deal, then hide it — once cards are drawn the deck
+  // is no longer needed beside them.
+  els.deck.hidden = false;
   animateDeck("is-dealing", 500);
   renderFaceDown(state.drawn);
+  setTimeout(() => { els.deck.hidden = true; }, prefersReducedMotion ? 0 : 480);
   setStatus(
     n === 1
       ? "A single card is drawn — revealing…"
