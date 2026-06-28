@@ -2,13 +2,16 @@
 import { DECK, AREAS, ZODIAC, LIFE_PATH } from "./cards.js";
 
 const POSITIONS = ["Past", "Present", "Future"];
+const HISTORY_KEY = "mystery.history.v1";
+const DAILY_KEY = "mystery.daily.v1";
+const HISTORY_LIMIT = 50;
 
 // --- State ---
 const state = {
   area: AREAS[0].key,
   spread: 1, // 1 = single card, 3 = past/present/future
-  drawn: [], // [{ card, reversed }]
   muted: false,
+  current: null, // the active reading object
 };
 
 // --- DOM ---
@@ -32,9 +35,33 @@ const els = {
   editDetailsBtn: document.getElementById("edit-details-btn"),
   deck: document.getElementById("deck"),
   deckStack: document.getElementById("deck-stack"),
+  dailyBtn: document.getElementById("daily-btn"),
+  historyBtn: document.getElementById("history-btn"),
+  installBtn: document.getElementById("install-btn"),
+  historyDrawer: document.getElementById("history-drawer"),
+  historyList: document.getElementById("history-list"),
+  historyEmpty: document.getElementById("history-empty"),
+  historyClear: document.getElementById("history-clear"),
 };
 
 const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+// --- Safe localStorage helpers (private browsing / quota can throw) ---
+function storeGet(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+function storeSet(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    /* ignore — history simply won't persist */
+  }
+}
 
 // Read the optional "about the seeker" fields. The draw never depends on
 // these — they only personalise the reading when provided.
@@ -70,7 +97,7 @@ function lifePathFor(dob) {
 
 // Returns { label, sentence } for a valid YYYY-MM-DD, or null otherwise.
 function birthInsight(dob) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob || "");
   if (!match) return null;
   const month = Number(match[2]);
   const day = Number(match[3]);
@@ -78,15 +105,15 @@ function birthInsight(dob) {
 
   const z = zodiacFor(month, day);
   const lp = lifePathFor(dob);
-  const lpNote = LIFE_PATH[lp];
   return {
     label: `${z.emoji} ${z.sign} · Life Path ${lp}`,
-    sentence: `As a ${z.sign}, you are ${z.note}, walking ${lpNote}.`,
+    sentence: `As a ${z.sign}, you are ${z.note}, walking ${LIFE_PATH[lp]}.`,
   };
 }
 
 // A working copy of the deck we can shuffle without touching the source.
 let deck = [...DECK];
+const cardById = new Map(DECK.map((c) => [c.id, c]));
 
 // --- Setup ---
 function populateAreas() {
@@ -111,7 +138,7 @@ function shuffle(arr) {
 
 function shuffleDeck() {
   deck = shuffle([...DECK]);
-  state.drawn = [];
+  state.current = null;
   els.spread.innerHTML = "";
   els.reading.hidden = true;
   els.reading.innerHTML = "";
@@ -128,8 +155,7 @@ function setStatus(text) {
 function animateDeck(cls, duration) {
   if (prefersReducedMotion) return;
   els.deckStack.classList.remove(cls);
-  // Force reflow so the animation restarts even on rapid repeat clicks.
-  void els.deckStack.offsetWidth;
+  void els.deckStack.offsetWidth; // force reflow so rapid repeats restart
   els.deckStack.classList.add(cls);
   setTimeout(() => els.deckStack.classList.remove(cls), duration);
 }
@@ -140,55 +166,94 @@ function showControls() {
   els.stageSeeker.hidden = true;
   els.stageControls.hidden = false;
 }
-
 function showSeeker() {
   els.stageControls.hidden = true;
   els.stageSeeker.hidden = false;
 }
-
 function updateSeekerSummary() {
   const { name, question } = getSeeker();
-  if (name) {
-    els.seekerSummaryText.textContent = `Reading for ${name}`;
-  } else if (question) {
-    els.seekerSummaryText.textContent = "Reading your question";
-  } else {
-    els.seekerSummaryText.textContent = "Anonymous reading";
-  }
+  els.seekerSummaryText.textContent = name
+    ? `Reading for ${name}`
+    : question
+      ? "Reading your question"
+      : "Anonymous reading";
 }
 
-// --- Drawing ---
-function drawCards(n) {
-  // Draw N unique cards from the (already shuffled) deck, each with a
-  // random upright/reversed orientation.
-  const picks = deck.slice(0, n).map((card) => ({
-    card,
-    reversed: Math.random() < 0.5,
-  }));
-  return picks;
+// ---------------------------------------------------------------------------
+// Reading model
+// A reading is a plain object: { id, ts, kind, areaKey, spread, seeker, cards }
+// where cards = [{ id, reversed }]. Everything (history, share, image) is
+// derived from it, so the same renderer serves draws, daily cards and shares.
+// ---------------------------------------------------------------------------
+function makeReading({ kind, cards, seeker, areaKey, spread }) {
+  return {
+    id: `${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+    ts: Date.now(),
+    kind, // "draw" | "daily" | "shared"
+    areaKey,
+    spread,
+    seeker,
+    cards, // [{ id, reversed }]
+  };
+}
+
+// Resolve a reading's card refs to full card objects: [{ card, reversed }].
+function resolveCards(reading) {
+  return reading.cards
+    .map(({ id, reversed }) => ({ card: cardById.get(id), reversed: !!reversed }))
+    .filter((c) => c.card);
 }
 
 function draw() {
   // Reshuffle each draw so repeated draws feel fresh.
   deck = shuffle([...DECK]);
   const n = state.spread;
-  state.drawn = drawCards(n);
+  const cards = deck.slice(0, n).map((card) => ({
+    id: card.id,
+    reversed: Math.random() < 0.5,
+  }));
 
-  // Show the deck for the deal, then hide it — once cards are drawn the deck
-  // is no longer needed beside them.
-  els.deck.hidden = false;
-  animateDeck("is-dealing", 500);
-  renderFaceDown(state.drawn);
-  setTimeout(() => { els.deck.hidden = true; }, prefersReducedMotion ? 0 : 480);
-  setStatus(
-    n === 1
-      ? "A single card is drawn — revealing…"
-      : "Three cards are drawn — revealing Past, Present, Future…"
-  );
+  const reading = makeReading({
+    kind: "draw",
+    cards,
+    seeker: getSeeker(),
+    areaKey: state.area,
+    spread: n,
+  });
 
-  // Flip them in sequence, then build + speak the reading.
-  flipInSequence(state.drawn).then(() => {
-    buildReading();
+  presentReading(reading, {
+    deal: true,
+    speak: true,
+    save: true,
+    status:
+      n === 1
+        ? "A single card is drawn — revealing…"
+        : "Three cards are drawn — revealing Past, Present, Future…",
+  });
+}
+
+// Shared deal+flip+reading pipeline for draw / daily / history / shared.
+function presentReading(reading, { deal = true, speak = true, save = false, status } = {}) {
+  state.current = reading;
+  state.area = reading.areaKey;
+  state.spread = reading.spread;
+  els.areaSelect.value = reading.areaKey;
+  syncSpreadToggle(reading.spread);
+
+  if (deal) {
+    els.deck.hidden = false;
+    animateDeck("is-dealing", 500);
+  }
+  const resolved = resolveCards(reading);
+  renderFaceDown(resolved);
+  if (deal) setTimeout(() => { els.deck.hidden = true; }, prefersReducedMotion ? 0 : 480);
+  else els.deck.hidden = true;
+  if (status) setStatus(status);
+
+  if (save) saveToHistory(reading);
+
+  flipInSequence(resolved).then(() => {
+    buildReading(reading, { speak });
   });
 }
 
@@ -236,16 +301,14 @@ function renderFaceDown(drawn) {
 
 function flipInSequence(drawn) {
   const cards = [...els.spread.querySelectorAll(".card")];
-  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const gap = reduceMotion ? 80 : 450;
+  const gap = prefersReducedMotion ? 80 : 450;
 
   return new Promise((resolve) => {
     cards.forEach((cardEl, i) => {
       setTimeout(() => {
         cardEl.classList.add("is-flipped");
         if (i === cards.length - 1) {
-          // Wait for the final flip animation to finish.
-          setTimeout(resolve, reduceMotion ? 60 : 700);
+          setTimeout(resolve, prefersReducedMotion ? 60 : 700);
         }
       }, i * gap);
     });
@@ -263,34 +326,45 @@ function romanOrNumber(n) {
 
 // Escape user-supplied text before inserting it into the DOM as HTML.
 function escapeHtml(str) {
-  return str.replace(/[&<>"']/g, (c) =>
+  return String(str).replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
   );
 }
 
-// --- Reading ---
-function buildReading() {
-  const area = AREAS.find((a) => a.key === state.area);
-  const drawn = state.drawn;
-  const seeker = getSeeker();
+// --- Reading panel ---
+function buildReading(reading, { speak = true } = {}) {
+  const area = AREAS.find((a) => a.key === reading.areaKey) || AREAS[0];
+  const drawn = resolveCards(reading);
+  const seeker = reading.seeker || { name: "", question: "", dob: "" };
   const insight = birthInsight(seeker.dob);
+  const dailyTag = reading.kind === "daily" ? "Card of the Day · " : "";
+
+  els.reading.innerHTML = "";
 
   const header = document.createElement("div");
   header.className = "reading__header";
   const greeting = seeker.name ? `${escapeHtml(seeker.name)}’s ` : "";
   header.innerHTML = `
-    <h2 class="reading__title">${area.icon} ${greeting}${area.label} reading</h2>
+    <h2 class="reading__title">${area.icon} ${dailyTag}${greeting}${area.label} reading</h2>
   `;
 
-  const againBtn = document.createElement("button");
-  againBtn.type = "button";
-  againBtn.className = "btn btn--ghost";
-  againBtn.id = "read-again-btn";
-  againBtn.textContent = "🔊 Read aloud again";
-  againBtn.addEventListener("click", () => speak(readingToText(drawn, area)));
-  header.appendChild(againBtn);
+  const actions = document.createElement("div");
+  actions.className = "reading__actions";
 
-  els.reading.innerHTML = "";
+  const againBtn = mkButton("🔊 Read aloud again", "btn btn--ghost", () =>
+    speakReading(reading)
+  );
+  againBtn.id = "read-again-btn";
+  const linkBtn = mkButton("🔗 Copy link", "btn btn--ghost", (e) =>
+    copyShareLink(reading, e.currentTarget)
+  );
+  linkBtn.id = "share-link-btn";
+  const imgBtn = mkButton("🖼️ Save image", "btn btn--ghost", () =>
+    downloadReadingImage(reading)
+  );
+  imgBtn.id = "save-image-btn";
+  actions.append(againBtn, linkBtn, imgBtn);
+  header.appendChild(actions);
   els.reading.appendChild(header);
 
   // Optional seeker context: their question and birth-date insight.
@@ -310,14 +384,12 @@ function buildReading() {
 
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "reversed" : "upright";
-    const meaning = card[orient][state.area];
+    const meaning = card[orient][reading.areaKey];
     const keywords = card.keywords[orient];
+    const positionLabel = drawn.length === 3 ? `${POSITIONS[i]} · ` : "";
 
     const entry = document.createElement("div");
     entry.className = "reading__entry";
-
-    const positionLabel = drawn.length === 3 ? `${POSITIONS[i]} · ` : "";
-
     entry.innerHTML = `
       <div class="reading__position">${positionLabel}${reversed ? "Reversed" : "Upright"}</div>
       <div class="reading__card-name">${card.symbol} ${card.name}<span class="tag">(${orient})</span></div>
@@ -334,58 +406,376 @@ function buildReading() {
       : "Your three cards are revealed across time."
   );
 
-  // Read it aloud.
-  speak(readingToText(drawn, area));
+  if (speak) speakReading(reading);
 }
 
-function readingToText(drawn, area) {
-  const seeker = getSeeker();
+function mkButton(label, className, onClick) {
+  const b = document.createElement("button");
+  b.type = "button";
+  b.className = className;
+  b.textContent = label;
+  b.addEventListener("click", onClick);
+  return b;
+}
+
+function readingToText(reading) {
+  const area = AREAS.find((a) => a.key === reading.areaKey) || AREAS[0];
+  const drawn = resolveCards(reading);
+  const seeker = reading.seeker || {};
   const insight = birthInsight(seeker.dob);
   const parts = [];
 
-  parts.push(
-    seeker.name
-      ? `${seeker.name}, here is your ${area.label} reading.`
-      : `${area.label} reading.`
-  );
+  const lead = reading.kind === "daily" ? "your Card of the Day" : `your ${area.label} reading`;
+  parts.push(seeker.name ? `${seeker.name}, here is ${lead}.` : `${capitalize(lead)}.`);
   if (seeker.question) parts.push(`You asked: ${seeker.question}.`);
   if (insight) parts.push(insight.sentence);
 
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "reversed" : "upright";
-    const meaning = card[orient][state.area];
+    const meaning = card[orient][reading.areaKey];
     const prefix = drawn.length === 3 ? `${POSITIONS[i]}: ` : "";
     parts.push(`${prefix}${card.name}, ${orient}. ${meaning}`);
   });
   return parts.join(" ");
 }
 
+function capitalize(s) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 // --- Speech (Web Speech API) ---
+function speakReading(reading) {
+  speak(readingToText(reading));
+}
 function speak(text) {
   if (state.muted) return;
   if (!("speechSynthesis" in window)) return;
-
-  // Stop anything currently being spoken first.
   window.speechSynthesis.cancel();
-
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.rate = 0.92;
   utterance.pitch = 1;
   utterance.lang = "en-US";
   window.speechSynthesis.speak(utterance);
 }
-
 function toggleMute() {
   state.muted = !state.muted;
   els.muteBtn.setAttribute("aria-pressed", String(state.muted));
   els.muteBtn.textContent = state.muted ? "🔇 Muted" : "🔊 Voice on";
-  if (state.muted && "speechSynthesis" in window) {
-    window.speechSynthesis.cancel();
+  if (state.muted && "speechSynthesis" in window) window.speechSynthesis.cancel();
+}
+
+// ---------------------------------------------------------------------------
+// Daily card — deterministic per calendar day, identical on every reload.
+// ---------------------------------------------------------------------------
+function todayKey() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+function hashString(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h;
+}
+function drawDaily() {
+  showControls();
+  const key = todayKey();
+  const h = hashString(key);
+  const card = DECK[h % DECK.length];
+  const reversed = ((h >> 5) & 1) === 1;
+
+  const reading = makeReading({
+    kind: "daily",
+    cards: [{ id: card.id, reversed }],
+    seeker: getSeeker(),
+    areaKey: "general",
+    spread: 1,
+  });
+
+  // Save to history only once per day.
+  const last = storeGet(DAILY_KEY, null);
+  const firstToday = !last || last.date !== key;
+  if (firstToday) storeSet(DAILY_KEY, { date: key, id: card.id, reversed });
+
+  presentReading(reading, {
+    deal: true,
+    speak: true,
+    save: firstToday,
+    status: `Your Card of the Day for ${key}.`,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// History (localStorage journal)
+// ---------------------------------------------------------------------------
+function loadHistory() {
+  return storeGet(HISTORY_KEY, []);
+}
+function saveToHistory(reading) {
+  const list = loadHistory();
+  list.unshift({
+    id: reading.id,
+    ts: reading.ts,
+    kind: reading.kind,
+    areaKey: reading.areaKey,
+    spread: reading.spread,
+    seeker: reading.seeker,
+    cards: reading.cards,
+  });
+  storeSet(HISTORY_KEY, list.slice(0, HISTORY_LIMIT));
+}
+function deleteFromHistory(id) {
+  storeSet(HISTORY_KEY, loadHistory().filter((r) => r.id !== id));
+  renderHistory();
+}
+function clearHistory() {
+  storeSet(HISTORY_KEY, []);
+  renderHistory();
+}
+
+function formatDate(ts) {
+  try {
+    return new Date(ts).toLocaleDateString(undefined, {
+      month: "short", day: "numeric", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
+function renderHistory() {
+  const list = loadHistory();
+  els.historyList.innerHTML = "";
+  els.historyEmpty.hidden = list.length > 0;
+
+  for (const r of list) {
+    const area = AREAS.find((a) => a.key === r.areaKey) || AREAS[0];
+    const names = r.cards
+      .map((c) => (cardById.get(c.id) ? cardById.get(c.id).name : "?"))
+      .join(" · ");
+    const tag = r.kind === "daily" ? "🌙 Daily" : r.spread === 3 ? "Past·Present·Future" : "Single";
+
+    const li = document.createElement("li");
+    li.className = "history-item";
+    li.innerHTML = `
+      <button type="button" class="history-item__open" data-id="${r.id}">
+        <span class="history-item__top">${area.icon} ${escapeHtml(area.label)}
+          <span class="history-item__tag">${tag}</span>
+        </span>
+        <span class="history-item__cards">${escapeHtml(names)}</span>
+        <span class="history-item__date">${formatDate(r.ts)}${r.seeker && r.seeker.name ? " · " + escapeHtml(r.seeker.name) : ""}</span>
+      </button>
+      <button type="button" class="history-item__del" data-del="${r.id}" aria-label="Delete reading">✕</button>
+    `;
+    els.historyList.appendChild(li);
+  }
+}
+
+function openHistory() {
+  renderHistory();
+  els.historyDrawer.hidden = false;
+  document.body.classList.add("drawer-open");
+}
+function closeHistory() {
+  els.historyDrawer.hidden = true;
+  document.body.classList.remove("drawer-open");
+}
+
+// Re-open a stored reading: switch back to the controls view and re-deal it.
+function openReading(id) {
+  const r = loadHistory().find((x) => x.id === id);
+  if (!r) return;
+  closeHistory();
+  showControls();
+  const reading = makeReading({
+    kind: r.kind,
+    cards: r.cards,
+    seeker: r.seeker,
+    areaKey: r.areaKey,
+    spread: r.spread,
+  });
+  reading.id = r.id;
+  reading.ts = r.ts;
+  presentReading(reading, { deal: false, speak: false, save: false, status: "Revisiting a past reading." });
+}
+
+// ---------------------------------------------------------------------------
+// Share — encode a reading into the URL and into a downloadable image.
+// ---------------------------------------------------------------------------
+function b64urlEncode(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function b64urlDecode(s) {
+  s = s.replace(/-/g, "+").replace(/_/g, "/");
+  return decodeURIComponent(escape(atob(s)));
+}
+function encodeReading(reading) {
+  const payload = {
+    k: reading.kind,
+    a: reading.areaKey,
+    s: reading.spread,
+    n: reading.seeker?.name || "",
+    q: reading.seeker?.question || "",
+    d: reading.seeker?.dob || "",
+    c: reading.cards.map((c) => [c.id, c.reversed ? 1 : 0]),
+  };
+  return b64urlEncode(JSON.stringify(payload));
+}
+function decodeReading(code) {
+  try {
+    const p = JSON.parse(b64urlDecode(code));
+    const cards = (p.c || [])
+      .map(([id, rev]) => ({ id, reversed: !!rev }))
+      .filter((c) => cardById.has(c.id));
+    if (!cards.length) return null;
+    return makeReading({
+      kind: p.k === "daily" ? "daily" : "shared",
+      cards,
+      seeker: { name: p.n || "", question: p.q || "", dob: p.d || "" },
+      areaKey: AREAS.some((a) => a.key === p.a) ? p.a : "general",
+      spread: p.s === 3 ? 3 : 1,
+    });
+  } catch {
+    return null;
+  }
+}
+function shareUrl(reading) {
+  const base = location.origin + location.pathname;
+  return `${base}#r=${encodeReading(reading)}`;
+}
+async function copyShareLink(reading, btn) {
+  const url = shareUrl(reading);
+  const done = (ok) => {
+    if (!btn) return;
+    const original = btn.textContent;
+    btn.textContent = ok ? "✅ Link copied" : "Copy failed";
+    setTimeout(() => { btn.textContent = original; }, 1800);
+  };
+  try {
+    await navigator.clipboard.writeText(url);
+    done(true);
+  } catch {
+    // Fallback for browsers without clipboard permission.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      ta.remove();
+      done(true);
+    } catch {
+      done(false);
+    }
+  }
+}
+
+// --- Image export (canvas) ---
+function wrapLines(ctx, text, maxWidth) {
+  const words = String(text).split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line);
+      line = w;
+    } else {
+      line = test;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function renderReadingImage(reading) {
+  const W = 1080;
+  const PAD = 64;
+  const inner = W - PAD * 2;
+  const dpr = 2;
+  const area = AREAS.find((a) => a.key === reading.areaKey) || AREAS[0];
+  const drawn = resolveCards(reading);
+  const seeker = reading.seeker || {};
+  const insight = birthInsight(seeker.dob);
+
+  // Measure pass on a throwaway context to compute height.
+  const meas = document.createElement("canvas").getContext("2d");
+  const blocks = []; // { type, text, font, color, lh, gapAfter }
+  const push = (text, font, color, lh, gapAfter, indent = 0) => {
+    meas.font = font;
+    const lines = wrapLines(meas, text, inner - indent);
+    blocks.push({ lines, font, color, lh, gapAfter, indent });
+  };
+
+  const greeting = seeker.name ? `${seeker.name}’s ` : "";
+  const dailyTag = reading.kind === "daily" ? "Card of the Day — " : "";
+  push(`${dailyTag}${greeting}${area.label} reading`, "600 46px Georgia, serif", "#e7c873", 56, 18);
+  if (seeker.question) push(`“${seeker.question}”`, "italic 30px Georgia, serif", "#ece8ff", 40, 10);
+  if (insight) push(insight.label + " — " + insight.sentence, "26px Georgia, serif", "#b6aedd", 36, 24);
+
+  drawn.forEach(({ card, reversed }, i) => {
+    const orient = reversed ? "Reversed" : "Upright";
+    const pos = drawn.length === 3 ? `${POSITIONS[i]} · ` : "";
+    push(`${pos}${orient}`, "600 22px Georgia, serif", "#c9a94e", 30, 4);
+    push(`${card.name}`, "600 34px Georgia, serif", "#ece8ff", 44, 4);
+    push(card.keywords[reversed ? "reversed" : "upright"], "italic 24px Georgia, serif", "#b6aedd", 32, 8);
+    push(card[reversed ? "reversed" : "upright"][reading.areaKey], "27px Georgia, serif", "#ece8ff", 38, 26);
+  });
+  push("Mystery · for reflection & entertainment", "italic 22px Georgia, serif", "#8c84b6", 30, 0);
+
+  let H = PAD * 2;
+  for (const b of blocks) H += b.lines.length * b.lh + b.gapAfter;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, "#150d35");
+  grad.addColorStop(1, "#0b0720");
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = "rgba(231,200,115,0.35)";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(20, 20, W - 40, H - 40);
+
+  let y = PAD + 12;
+  ctx.textBaseline = "top";
+  for (const b of blocks) {
+    ctx.font = b.font;
+    ctx.fillStyle = b.color;
+    for (const line of b.lines) {
+      ctx.fillText(line, PAD + b.indent, y);
+      y += b.lh;
+    }
+    y += b.gapAfter;
+  }
+  return canvas;
+}
+
+function downloadReadingImage(reading) {
+  try {
+    const canvas = renderReadingImage(reading);
+    const a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = `mystery-reading-${reading.areaKey}.png`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  } catch {
+    setStatus("Could not generate an image in this browser.");
   }
 }
 
 // --- Events ---
-function setSpread(n) {
+function syncSpreadToggle(n) {
   state.spread = n;
   [...els.spreadToggle.querySelectorAll(".segmented__btn")].forEach((btn) => {
     const active = Number(btn.dataset.spread) === n;
@@ -397,21 +787,23 @@ function setSpread(n) {
 function bindEvents() {
   els.areaSelect.addEventListener("change", (e) => {
     state.area = e.target.value;
-    // If cards are already on the table, rebuild the reading for the new area.
-    if (state.drawn.length) buildReading();
+    // Rebuild the active reading for the new area (no re-deal, no auto-speak).
+    if (state.current) {
+      state.current.areaKey = state.area;
+      buildReading(state.current, { speak: false });
+    }
   });
 
   els.spreadToggle.addEventListener("click", (e) => {
     const btn = e.target.closest(".segmented__btn");
     if (!btn) return;
-    setSpread(Number(btn.dataset.spread));
+    syncSpreadToggle(Number(btn.dataset.spread));
   });
 
   els.shuffleBtn.addEventListener("click", shuffleDeck);
   els.drawBtn.addEventListener("click", draw);
   els.muteBtn.addEventListener("click", toggleMute);
 
-  // Stage 1 -> Stage 2: Continue keeps entered details; Skip clears them.
   els.continueBtn.addEventListener("click", showControls);
   els.skipBtn.addEventListener("click", () => {
     els.seekerName.value = "";
@@ -420,9 +812,66 @@ function bindEvents() {
     showControls();
   });
   els.editDetailsBtn.addEventListener("click", showSeeker);
+
+  els.dailyBtn.addEventListener("click", drawDaily);
+  els.historyBtn.addEventListener("click", openHistory);
+  els.historyClear.addEventListener("click", clearHistory);
+
+  // Drawer: close on backdrop / close button, open a reading or delete one.
+  els.historyDrawer.addEventListener("click", (e) => {
+    if (e.target.dataset.close === "history") closeHistory();
+    const open = e.target.closest("[data-id]");
+    if (open) openReading(open.dataset.id);
+    const del = e.target.closest("[data-del]");
+    if (del) { e.stopPropagation(); deleteFromHistory(del.dataset.del); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !els.historyDrawer.hidden) closeHistory();
+  });
+}
+
+// --- Progressive Web App: service worker + install prompt ---
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  if (location.protocol !== "http:" && location.protocol !== "https:") return;
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch(() => {/* offline unavailable */});
+  });
+}
+let deferredInstall = null;
+function setupInstall() {
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstall = e;
+    els.installBtn.hidden = false;
+  });
+  els.installBtn.addEventListener("click", async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    await deferredInstall.userChoice;
+    deferredInstall = null;
+    els.installBtn.hidden = true;
+  });
+  window.addEventListener("appinstalled", () => { els.installBtn.hidden = true; });
+}
+
+// If the URL carries a shared reading (#r=...), open it on load.
+function loadSharedFromUrl() {
+  const m = /[#&]r=([^&]+)/.exec(location.hash);
+  if (!m) return false;
+  const reading = decodeReading(m[1]);
+  if (!reading) return false;
+  showControls();
+  presentReading(reading, { deal: false, speak: false, save: false, status: "A shared reading." });
+  // Clear the hash so a refresh doesn't re-trigger.
+  history.replaceState(null, "", location.pathname);
+  return true;
 }
 
 // --- Init ---
 populateAreas();
 bindEvents();
+registerServiceWorker();
+setupInstall();
 setStatus(`Deck ready · ${DECK.length} cards · tap Shuffle to begin.`);
+loadSharedFromUrl();

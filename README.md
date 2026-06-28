@@ -26,8 +26,18 @@ No build step. No dependencies. Just plain HTML, CSS, and vanilla JavaScript
   "read aloud again" button and a mute toggle.
 - **Mystical dark theme** — deep indigo background, gold accents, and an
   animated starfield.
-- **Accessible & responsive** — works on mobile, respects
-  `prefers-reduced-motion`.
+- **Reading history / journal** — every reading is saved locally (in your
+  browser) and can be revisited, reopened, or deleted from a slide-in drawer.
+- **Card of the Day** — a deterministic daily card that's the same on every
+  visit that day.
+- **Share** — copy a link that reopens the exact reading, or export it as a
+  polished PNG image.
+- **Installable PWA** — add Mystery to your home screen and use it offline
+  (service-worker cached app shell).
+- **Privacy-first** — no accounts, no servers; your name, question, and history
+  never leave your device.
+- **Accessible & responsive** — keyboard-navigable, ARIA dialog for the history
+  drawer, respects `prefers-reduced-motion`.
 
 ## How to run
 
@@ -49,5 +59,15 @@ point is that you need a server, not a `file://` path.
 | --- | --- |
 | `index.html` | Page layout and controls |
 | `styles.css` | Dark mystical theme, starfield, 3D flip animation |
-| `cards.js` | `AREAS` and the 22-card `DECK` data |
-| `app.js` | Shuffle, draw, render, reading, and speech logic |
+| `cards.js` | `AREAS`, the 22-card `DECK`, plus `ZODIAC` + `LIFE_PATH` data |
+| `app.js` | Shuffle, draw, reading model, history, daily card, share, speech, PWA |
+| `manifest.webmanifest` | PWA metadata (installable app) |
+| `sw.js` | Service worker — offline app-shell cache |
+| `icons/` | App icons (192/512) |
+
+## Data & privacy
+
+Everything runs client-side. Reading history and the daily card are stored in
+your browser's `localStorage`; nothing is sent to a server. Use **Clear all** in
+the history drawer to erase it. Shared links encode the reading in the URL
+itself (no backend lookup).

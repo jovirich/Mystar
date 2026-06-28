@@ -28,11 +28,17 @@ download, works in any browser, reads to you aloud.
 | Optional personalization (name, question, birth date → zodiac + numerology) | ✅ Shipped |
 | Web Speech narration, mute, read‑again | ✅ Shipped |
 | Two‑column board, deck shuffle/deal animations | ✅ Shipped |
+| Reading history / journal (localStorage) | ✅ Shipped |
+| Card of the Day (deterministic daily) | ✅ Shipped |
+| Share via link + PNG image export | ✅ Shipped |
+| Installable PWA + offline (service worker) | ✅ Shipped |
+| "Entertainment only" disclaimer + Open Graph/SEO | ✅ Shipped |
 | Static, dependency‑free, accessible, responsive | ✅ Shipped |
 
-**Strengths:** fast, private, polished, $0 hosting (GitHub Pages).
-**Gaps that cap value:** no persistence, no return reason (retention), no full
-deck/spreads, no synthesis across cards, no revenue, no measurement.
+**Strengths:** fast, private, polished, installable, $0 hosting (GitHub Pages),
+with a retention loop (history + daily) and viral loop (share) now in place.
+**Remaining gaps:** full 78‑card deck, more spreads, AI‑synthesized narrative,
+accounts/sync, and monetization — the **NEXT** horizon below.
 
 ---
 

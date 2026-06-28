@@ -3,15 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Mystery · Tarot Reading</title>
+    <title>Mystery · Tarot Card Reading</title>
     <meta
       name="description"
-      content="Mystery — shuffle the Major Arcana, draw cards for an area of your life, and have the meaning read aloud."
+      content="Mystery is a free online tarot reading. Shuffle the deck, draw cards for an area of your life, and hear the meaning read aloud — private, no signup."
     />
+    <meta name="theme-color" content="#0b0720" />
+
+    <!-- Open Graph / social -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Mystery · Tarot Card Reading" />
+    <meta
+      property="og:description"
+      content="Shuffle the deck, draw cards for an area of your life, and hear the meaning read aloud — private, no signup."
+    />
+    <meta property="og:image" content="./icons/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Mystery · Tarot Card Reading" />
+    <meta
+      name="twitter:description"
+      content="A free, private tarot reading that draws your cards and reads the meaning aloud."
+    />
+
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%94%AE%3C/text%3E%3C/svg%3E"
     />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -27,6 +47,11 @@
       <header class="app__header">
         <h1 class="app__title">Mystery</h1>
         <p class="app__subtitle">Shuffle the Major Arcana and let the cards speak.</p>
+        <nav class="toolbar" aria-label="Quick actions">
+          <button type="button" id="daily-btn" class="btn btn--ghost">🌙 Card of the Day</button>
+          <button type="button" id="history-btn" class="btn btn--ghost">📜 History</button>
+          <button type="button" id="install-btn" class="btn btn--ghost" hidden>⤓ Install</button>
+        </nav>
       </header>
 
       <div class="board">
@@ -156,7 +181,47 @@
       </div>
 
       <section id="reading" class="reading" aria-live="polite" hidden></section>
+
+      <footer class="app__footer">
+        <p class="disclaimer">
+          Mystery is for reflection and entertainment only — not medical, legal,
+          or financial advice. Your name, question, and readings stay on this
+          device.
+        </p>
+        <p class="colophon">Made with the Major Arcana · runs entirely in your browser</p>
+      </footer>
     </main>
+
+    <!-- History drawer -->
+    <div class="drawer" id="history-drawer" hidden>
+      <div class="drawer__backdrop" data-close="history"></div>
+      <aside
+        class="drawer__panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="history-title"
+      >
+        <header class="drawer__header">
+          <h2 class="drawer__title" id="history-title">📜 Your readings</h2>
+          <div class="drawer__actions">
+            <button type="button" id="history-clear" class="link-btn">Clear all</button>
+            <button
+              type="button"
+              id="history-close"
+              class="btn btn--icon"
+              data-close="history"
+              aria-label="Close history"
+            >
+              ✕
+            </button>
+          </div>
+        </header>
+        <p class="history-empty" id="history-empty">
+          No readings yet. Draw a card to begin your journal.
+        </p>
+        <ul class="history-list" id="history-list"></ul>
+      </aside>
+    </div>
 
     <script type="module" src="./app.js"></script>
   </body>
