@@ -159,8 +159,8 @@
           </div>
         </section>
 
-        <!-- RIGHT CARD: the deck + drawn cards -->
-        <section class="panel panel--right" aria-label="The deck">
+        <!-- RIGHT CARD: the deck, then your reading carousel -->
+        <section class="panel panel--right" aria-label="The deck and your reading">
           <div class="deck" id="deck">
             <div class="deck-stack" id="deck-stack" aria-hidden="true">
               <div class="deck-card"></div>
@@ -176,11 +176,9 @@
             Deck ready · 22 cards · tap Shuffle to begin.
           </p>
 
-          <section id="spread" class="spread" aria-label="Drawn cards"></section>
+          <section id="reading" class="reading" aria-live="polite" hidden></section>
         </section>
       </div>
-
-      <section id="reading" class="reading" aria-live="polite" hidden></section>
 
       <footer class="app__footer">
         <p class="disclaimer">

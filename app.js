@@ -22,7 +22,6 @@ const els = {
   drawBtn: document.getElementById("draw-btn"),
   muteBtn: document.getElementById("mute-btn"),
   deckStatus: document.getElementById("deck-status"),
-  spread: document.getElementById("spread"),
   reading: document.getElementById("reading"),
   seekerName: document.getElementById("seeker-name"),
   seekerQuestion: document.getElementById("seeker-question"),
@@ -139,7 +138,7 @@ function shuffle(arr) {
 function shuffleDeck() {
   deck = shuffle([...DECK]);
   state.current = null;
-  els.spread.innerHTML = "";
+  carousel.track = null;
   els.reading.hidden = true;
   els.reading.innerHTML = "";
   els.deck.hidden = false; // bring the deck back into view to shuffle it
@@ -232,7 +231,7 @@ function draw() {
   });
 }
 
-// Shared deal+flip+reading pipeline for draw / daily / history / shared.
+// Shared deal -> carousel pipeline for draw / daily / history / shared.
 function presentReading(reading, { deal = true, speak = true, save = false, status } = {}) {
   state.current = reading;
   state.area = reading.areaKey;
@@ -243,87 +242,80 @@ function presentReading(reading, { deal = true, speak = true, save = false, stat
   if (deal) {
     els.deck.hidden = false;
     animateDeck("is-dealing", 500);
+    setTimeout(() => { els.deck.hidden = true; }, prefersReducedMotion ? 0 : 480);
+  } else {
+    els.deck.hidden = true;
   }
-  const resolved = resolveCards(reading);
-  renderFaceDown(resolved);
-  if (deal) setTimeout(() => { els.deck.hidden = true; }, prefersReducedMotion ? 0 : 480);
-  else els.deck.hidden = true;
   if (status) setStatus(status);
-
   if (save) saveToHistory(reading);
 
-  flipInSequence(resolved).then(() => {
-    buildReading(reading, { speak });
-  });
+  // Build the carousel just after the deck lifts, so cards 'arrive' from it.
+  const delay = deal && !prefersReducedMotion ? 340 : 0;
+  setTimeout(() => buildReading(reading, { speak }), delay);
 }
 
-// --- Rendering ---
-function renderFaceDown(drawn) {
-  els.spread.innerHTML = "";
-  els.reading.hidden = true;
-  els.reading.innerHTML = "";
+// --- Carousel: one slide per card (artwork + its meaning) ---
+const carousel = { index: 0, count: 0, revealed: null, track: null, slides: [], dots: [], prevBtn: null, nextBtn: null };
 
-  drawn.forEach(({ card, reversed }, i) => {
-    const slot = document.createElement("div");
-    slot.className = "card-slot";
-
-    const position = document.createElement("div");
-    position.className = "card-slot__position";
-    position.textContent = drawn.length === 3 ? POSITIONS[i] : "";
-    slot.appendChild(position);
-
-    const cardEl = document.createElement("div");
-    cardEl.className = "card";
-    cardEl.dataset.index = String(i);
-
-    const inner = document.createElement("div");
-    inner.className = "card__inner";
-
-    const back = document.createElement("div");
-    back.className = "card__face card__back";
-
-    const front = document.createElement("div");
-    front.className = "card__face card__front" + (reversed ? " is-reversed" : "");
-    const img = document.createElement("img");
-    img.className = "card__art";
-    img.src = cardImage(card);
-    img.alt = `${card.name}${reversed ? ", reversed" : ""}`;
-    img.loading = "lazy";
-    // If the artwork can't load, fall back to the emoji/name layout.
-    img.addEventListener("error", () => {
-      front.classList.add("card__front--fallback");
-      front.innerHTML = `
-        <div class="card__symbol">${card.symbol}</div>
-        <div class="card__number">${romanOrNumber(card.number)}</div>
-        <h3 class="card__name">${card.name}</h3>
-        <div class="card__orientation">${reversed ? "Reversed" : "Upright"}</div>
-      `;
-    });
-    front.appendChild(img);
-
-    inner.appendChild(back);
-    inner.appendChild(front);
-    cardEl.appendChild(inner);
-    slot.appendChild(cardEl);
-    els.spread.appendChild(slot);
-  });
+function cardFlipHtml(card, reversed) {
+  return `
+    <div class="card">
+      <div class="card__inner">
+        <div class="card__face card__back"></div>
+        <div class="card__face card__front${reversed ? " is-reversed" : ""}">
+          <img class="card__art" src="${cardImage(card)}"
+               alt="${escapeHtml(card.name)}${reversed ? ", reversed" : ""}" loading="lazy" />
+        </div>
+      </div>
+    </div>`;
 }
 
-function flipInSequence(drawn) {
-  const cards = [...els.spread.querySelectorAll(".card")];
-  const gap = prefersReducedMotion ? 80 : 450;
+function fallbackFront(wrap, card, reversed) {
+  const front = wrap.querySelector(".card__front");
+  if (!front) return;
+  front.classList.add("card__front--fallback");
+  front.innerHTML = `
+    <div class="card__symbol">${card.symbol}</div>
+    <div class="card__number">${romanOrNumber(card.number)}</div>
+    <h3 class="card__name">${escapeHtml(card.name)}</h3>
+    <div class="card__orientation">${reversed ? "Reversed" : "Upright"}</div>`;
+}
 
-  return new Promise((resolve) => {
-    cards.forEach((cardEl, i) => {
-      setTimeout(() => {
-        cardEl.classList.add("is-flipped");
-        if (i === cards.length - 1) {
-          setTimeout(resolve, prefersReducedMotion ? 60 : 700);
-        }
-      }, i * gap);
-    });
-    if (cards.length === 0) resolve();
-  });
+function carouselGoTo(i, { reveal = true } = {}) {
+  if (!carousel.track) return;
+  const n = carousel.count;
+  i = Math.max(0, Math.min(n - 1, i));
+  carousel.index = i;
+  carousel.track.style.transform = `translateX(${-i * 100}%)`;
+  carousel.dots.forEach((d, k) => d.classList.toggle("is-active", k === i));
+  if (carousel.prevBtn) carousel.prevBtn.disabled = i === 0;
+  if (carousel.nextBtn) carousel.nextBtn.disabled = i === n - 1;
+  if (reveal) revealSlide(i);
+}
+
+function revealSlide(i) {
+  if (!carousel.revealed || carousel.revealed.has(i)) return;
+  carousel.revealed.add(i);
+  const cardEl = carousel.slides[i] && carousel.slides[i].querySelector(".card");
+  if (!cardEl) return;
+  if (prefersReducedMotion) cardEl.classList.add("is-flipped");
+  else setTimeout(() => cardEl.classList.add("is-flipped"), 120);
+}
+
+// Touch + mouse drag to swipe between slides.
+function addSwipe(el) {
+  let x0 = null;
+  const start = (x) => { x0 = x; };
+  const end = (x) => {
+    if (x0 === null) return;
+    const dx = x - x0;
+    if (Math.abs(dx) > 40) carouselGoTo(carousel.index + (dx < 0 ? 1 : -1));
+    x0 = null;
+  };
+  el.addEventListener("touchstart", (e) => start(e.touches[0].clientX), { passive: true });
+  el.addEventListener("touchend", (e) => end(e.changedTouches[0].clientX));
+  el.addEventListener("pointerdown", (e) => { if (e.pointerType === "mouse") start(e.clientX); });
+  el.addEventListener("pointerup", (e) => { if (e.pointerType === "mouse") end(e.clientX); });
 }
 
 // Card artwork: Rider–Waite–Smith scans live in ./cards/<id>.jpg.
@@ -397,30 +389,85 @@ function buildReading(reading, { speak = true } = {}) {
     els.reading.appendChild(context);
   }
 
+  // Carousel — each card travels with its own meaning.
+  const single = drawn.length === 1;
+  const carouselEl = document.createElement("div");
+  carouselEl.className = "carousel" + (single ? " carousel--single" : "");
+  carouselEl.tabIndex = 0;
+
+  const prevBtn = mkButton("‹", "carousel__nav carousel__nav--prev", () => carouselGoTo(carousel.index - 1));
+  prevBtn.setAttribute("aria-label", "Previous card");
+  const nextBtn = mkButton("›", "carousel__nav carousel__nav--next", () => carouselGoTo(carousel.index + 1));
+  nextBtn.setAttribute("aria-label", "Next card");
+
+  const viewport = document.createElement("div");
+  viewport.className = "carousel__viewport";
+  const track = document.createElement("div");
+  track.className = "carousel__track";
+  viewport.appendChild(track);
+
+  const slides = [];
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "reversed" : "upright";
-    const meaning = card[orient][reading.areaKey];
-    const keywords = card.keywords[orient];
     const positionLabel = drawn.length === 3 ? `${POSITIONS[i]} · ` : "";
 
-    const entry = document.createElement("div");
-    entry.className = "reading__entry";
-    entry.innerHTML = `
+    const slide = document.createElement("div");
+    slide.className = "slide";
+
+    const cardWrap = document.createElement("div");
+    cardWrap.className = "slide__card";
+    cardWrap.innerHTML = cardFlipHtml(card, reversed);
+    const img = cardWrap.querySelector(".card__art");
+    if (img) img.addEventListener("error", () => fallbackFront(cardWrap, card, reversed));
+
+    const body = document.createElement("div");
+    body.className = "slide__body";
+    body.innerHTML = `
       <div class="reading__position">${positionLabel}${reversed ? "Reversed" : "Upright"}</div>
-      <div class="reading__card-name">${card.symbol} ${card.name}<span class="tag">(${orient})</span></div>
-      <p class="reading__keywords">${keywords}</p>
-      <p class="meaning">${meaning}</p>
+      <div class="reading__card-name">${card.name}<span class="tag">(${orient})</span></div>
+      <p class="reading__keywords">${card.keywords[orient]}</p>
+      <p class="meaning">${card[orient][reading.areaKey]}</p>
     `;
-    els.reading.appendChild(entry);
+
+    slide.append(cardWrap, body);
+    track.appendChild(slide);
+    slides.push(slide);
   });
 
-  els.reading.hidden = false;
-  setStatus(
-    drawn.length === 1
-      ? "Your card is revealed. Reflect on its message."
-      : "Your three cards are revealed across time."
-  );
+  const stage = document.createElement("div");
+  stage.className = "carousel__stage";
+  stage.append(prevBtn, viewport, nextBtn);
+  carouselEl.appendChild(stage);
 
+  const dotsWrap = document.createElement("div");
+  dotsWrap.className = "carousel__dots";
+  const dots = drawn.map((_, i) => {
+    const d = document.createElement("button");
+    d.type = "button";
+    d.className = "carousel__dot";
+    d.setAttribute("aria-label", `Go to card ${i + 1}`);
+    d.addEventListener("click", () => carouselGoTo(i));
+    dotsWrap.appendChild(d);
+    return d;
+  });
+  carouselEl.appendChild(dotsWrap);
+  els.reading.appendChild(carouselEl);
+  els.reading.hidden = false;
+
+  carouselEl.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft") { carouselGoTo(carousel.index - 1); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { carouselGoTo(carousel.index + 1); e.preventDefault(); }
+  });
+  addSwipe(viewport);
+
+  // Wire carousel state and reveal the first card.
+  Object.assign(carousel, {
+    index: 0, count: drawn.length, revealed: new Set(),
+    track, slides, dots, prevBtn, nextBtn,
+  });
+  carouselGoTo(0);
+
+  setStatus(single ? "Your card is revealed." : "Swipe through Past · Present · Future.");
   if (speak) speakReading(reading);
 }
 

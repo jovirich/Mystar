@@ -468,38 +468,6 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* ---------- Spread of cards ---------- */
-.spread {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-  justify-content: center;
-  width: 100%;
-}
-
-.spread:empty {
-  display: none;
-}
-
-.card-slot {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  width: 150px;
-  max-width: 40vw;
-  animation: deal-in 0.45s ease both;
-}
-
-.card-slot__position {
-  font-family: "Cinzel", serif;
-  font-size: 0.8rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--gold-soft);
-  min-height: 1rem;
-}
-
 /* 3D flip card — aspect matches the Rider–Waite–Smith scans (~0.595). */
 .card {
   width: 100%;
@@ -613,16 +581,11 @@ body {
   color: var(--ink-dim);
 }
 
-/* ---------- Reading panel ---------- */
+/* ---------- Reading (carousel) — lives inside the right panel ---------- */
 .reading {
-  margin-top: 2.4rem;
-  background: var(--panel);
-  border: 1px solid var(--panel-edge);
-  border-radius: var(--radius);
-  padding: 1.6rem 1.8rem;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
-  animation: rise 0.6s ease both;
+  width: 100%;
+  margin-top: 0.4rem;
+  animation: rise 0.5s ease both;
 }
 
 @keyframes rise {
@@ -632,10 +595,9 @@ body {
 
 .reading__header {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.8rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.7rem;
   border-bottom: 1px solid var(--panel-edge);
   padding-bottom: 0.8rem;
   margin-bottom: 1rem;
@@ -714,9 +676,112 @@ body {
   color: var(--ink);
 }
 
-@keyframes deal-in {
-  from { opacity: 0; transform: translateY(-34px) scale(0.94); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+/* ---------- Reading carousel ---------- */
+.carousel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  outline: none;
+}
+
+.carousel__stage {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.carousel__viewport {
+  flex: 1;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.carousel__track {
+  display: flex;
+  transition: transform 0.4s cubic-bezier(0.3, 0.7, 0.2, 1);
+  will-change: transform;
+}
+
+.slide {
+  flex: 0 0 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+  padding: 0.2rem;
+  box-sizing: border-box;
+}
+
+.slide__card {
+  width: min(220px, 64%);
+}
+
+.slide__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.carousel__nav {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 1px solid var(--panel-edge);
+  background: rgba(11, 7, 32, 0.65);
+  color: var(--gold);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, opacity 0.2s, transform 0.12s;
+}
+
+.carousel__nav:hover:not([disabled]) {
+  border-color: var(--gold-soft);
+  transform: translateY(-1px);
+}
+
+.carousel__nav[disabled] {
+  opacity: 0.28;
+  cursor: default;
+}
+
+.carousel__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.carousel__dot {
+  width: 9px;
+  height: 9px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--gold-soft);
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.carousel__dot.is-active {
+  background: var(--gold);
+  transform: scale(1.15);
+}
+
+.carousel--single .carousel__nav,
+.carousel--single .carousel__dots {
+  display: none;
+}
+
+.carousel:focus-visible,
+.carousel__nav:focus-visible,
+.carousel__dot:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
 }
 
 /* ---------- Header toolbar ---------- */
@@ -972,6 +1037,9 @@ body.drawer-open {
   }
   .card__inner {
     transition: transform 0.001s linear;
+  }
+  .carousel__track {
+    transition: none;
   }
   .reading,
   .stage,
