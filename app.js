@@ -1,5 +1,5 @@
 // app.js — Mystery tarot app logic.
-import { DECK, AREAS } from "./cards.js";
+import { DECK, AREAS, ZODIAC, LIFE_PATH } from "./cards.js";
 
 const POSITIONS = ["Past", "Present", "Future"];
 
@@ -21,7 +21,59 @@ const els = {
   deckStatus: document.getElementById("deck-status"),
   spread: document.getElementById("spread"),
   reading: document.getElementById("reading"),
+  seekerName: document.getElementById("seeker-name"),
+  seekerQuestion: document.getElementById("seeker-question"),
+  seekerDob: document.getElementById("seeker-dob"),
 };
+
+// Read the optional "about the seeker" fields. The draw never depends on
+// these — they only personalise the reading when provided.
+function getSeeker() {
+  return {
+    name: (els.seekerName.value || "").trim(),
+    question: (els.seekerQuestion.value || "").trim(),
+    dob: els.seekerDob.value || "", // "YYYY-MM-DD" or ""
+  };
+}
+
+// --- Birthdate insight (zodiac + numerology) ---
+function zodiacFor(month, day) {
+  // ZODIAC is ordered by start date; find the latest sign whose start
+  // date is on or before the birthday. Dates before Jan 20 wrap to Capricorn.
+  let current = ZODIAC[0]; // Capricorn (handles early-January dates)
+  for (const z of ZODIAC) {
+    const [m, d] = z.start;
+    if (month > m || (month === m && day >= d)) current = z;
+  }
+  return current;
+}
+
+function lifePathFor(dob) {
+  const digits = dob.replace(/\D/g, "").split("").map(Number);
+  let sum = digits.reduce((a, b) => a + b, 0);
+  const isMaster = (n) => n === 11 || n === 22 || n === 33;
+  while (sum > 9 && !isMaster(sum)) {
+    sum = String(sum).split("").reduce((a, b) => a + Number(b), 0);
+  }
+  return sum;
+}
+
+// Returns { label, sentence } for a valid YYYY-MM-DD, or null otherwise.
+function birthInsight(dob) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dob);
+  if (!match) return null;
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+  const z = zodiacFor(month, day);
+  const lp = lifePathFor(dob);
+  const lpNote = LIFE_PATH[lp];
+  return {
+    label: `${z.emoji} ${z.sign} · Life Path ${lp}`,
+    sentence: `As a ${z.sign}, you are ${z.note}, walking ${lpNote}.`,
+  };
+}
 
 // A working copy of the deck we can shuffle without touching the source.
 let deck = [...DECK];
@@ -159,15 +211,25 @@ function romanOrNumber(n) {
   return romans[n] ?? String(n);
 }
 
+// Escape user-supplied text before inserting it into the DOM as HTML.
+function escapeHtml(str) {
+  return str.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
+  );
+}
+
 // --- Reading ---
 function buildReading() {
   const area = AREAS.find((a) => a.key === state.area);
   const drawn = state.drawn;
+  const seeker = getSeeker();
+  const insight = birthInsight(seeker.dob);
 
   const header = document.createElement("div");
   header.className = "reading__header";
+  const greeting = seeker.name ? `${escapeHtml(seeker.name)}’s ` : "";
   header.innerHTML = `
-    <h2 class="reading__title">${area.icon} ${area.label} reading</h2>
+    <h2 class="reading__title">${area.icon} ${greeting}${area.label} reading</h2>
   `;
 
   const againBtn = document.createElement("button");
@@ -180,6 +242,21 @@ function buildReading() {
 
   els.reading.innerHTML = "";
   els.reading.appendChild(header);
+
+  // Optional seeker context: their question and birth-date insight.
+  if (seeker.question || insight) {
+    const context = document.createElement("div");
+    context.className = "reading__context";
+    let html = "";
+    if (seeker.question) {
+      html += `<p class="reading__question">On your question: <em>“${escapeHtml(seeker.question)}”</em></p>`;
+    }
+    if (insight) {
+      html += `<p class="reading__astro"><span class="reading__astro-label">${insight.label}</span> — ${insight.sentence}</p>`;
+    }
+    context.innerHTML = html;
+    els.reading.appendChild(context);
+  }
 
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "reversed" : "upright";
@@ -212,7 +289,18 @@ function buildReading() {
 }
 
 function readingToText(drawn, area) {
-  const parts = [`${area.label} reading.`];
+  const seeker = getSeeker();
+  const insight = birthInsight(seeker.dob);
+  const parts = [];
+
+  parts.push(
+    seeker.name
+      ? `${seeker.name}, here is your ${area.label} reading.`
+      : `${area.label} reading.`
+  );
+  if (seeker.question) parts.push(`You asked: ${seeker.question}.`);
+  if (insight) parts.push(insight.sentence);
+
   drawn.forEach(({ card, reversed }, i) => {
     const orient = reversed ? "reversed" : "upright";
     const meaning = card[orient][state.area];

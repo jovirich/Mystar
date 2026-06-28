@@ -109,6 +109,63 @@ body {
   margin: 0.4rem 0 0;
 }
 
+/* ---------- Seeker (optional personalization) ---------- */
+.seeker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.1rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(6px);
+}
+
+.control--grow {
+  flex: 1 1 220px;
+  min-width: 180px;
+}
+
+.control__opt {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-style: italic;
+  color: var(--ink-dim);
+  opacity: 0.8;
+}
+
+.input {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 1.05rem;
+  color: var(--ink);
+  background: rgba(11, 7, 32, 0.85);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  padding: 0.55rem 0.8rem;
+  width: 100%;
+}
+
+.input::placeholder {
+  color: var(--ink-dim);
+  opacity: 0.6;
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Make the native date picker indicator visible on the dark theme. */
+.input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.85) sepia(0.4) saturate(3) hue-rotate(5deg);
+  cursor: pointer;
+}
+
 /* ---------- Controls ---------- */
 .controls {
   display: flex;
@@ -405,6 +462,31 @@ body {
   font-size: 1.3rem;
   color: var(--gold);
   margin: 0;
+}
+
+.reading__context {
+  margin: 0 0 1.3rem;
+  padding: 0.2rem 0 0.9rem;
+  border-bottom: 1px dashed var(--panel-edge);
+}
+
+.reading__question {
+  font-size: 1.18rem;
+  margin: 0 0 0.5rem;
+  color: var(--ink);
+}
+
+.reading__astro {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--ink-dim);
+}
+
+.reading__astro-label {
+  font-family: "Cinzel", serif;
+  font-size: 0.92rem;
+  letter-spacing: 0.04em;
+  color: var(--gold);
 }
 
 .reading__entry {

@@ -12,6 +12,40 @@ export const AREAS = [
   { key: "spirit", label: "Spirit", icon: "✨" },
 ];
 
+// ZODIAC: Western tropical signs with inclusive [month, day] start dates,
+// each with a one-line note used to colour an optional birth-date reading.
+export const ZODIAC = [
+  { sign: "Capricorn", emoji: "♑", start: [12, 22], note: "grounded, patient, and quietly ambitious" },
+  { sign: "Aquarius", emoji: "♒", start: [1, 20], note: "inventive, independent, and future-facing" },
+  { sign: "Pisces", emoji: "♓", start: [2, 19], note: "intuitive, tender, and deeply imaginative" },
+  { sign: "Aries", emoji: "♈", start: [3, 21], note: "bold, pioneering, and quick to act" },
+  { sign: "Taurus", emoji: "♉", start: [4, 20], note: "steadfast, sensual, and devoted to comfort" },
+  { sign: "Gemini", emoji: "♊", start: [5, 21], note: "curious, expressive, and mentally agile" },
+  { sign: "Cancer", emoji: "♋", start: [6, 21], note: "nurturing, loyal, and led by feeling" },
+  { sign: "Leo", emoji: "♌", start: [7, 23], note: "warm, radiant, and generous of heart" },
+  { sign: "Virgo", emoji: "♍", start: [8, 23], note: "discerning, thoughtful, and quietly devoted" },
+  { sign: "Libra", emoji: "♎", start: [9, 23], note: "harmonious, fair-minded, and relational" },
+  { sign: "Scorpio", emoji: "♏", start: [10, 23], note: "intense, perceptive, and transformative" },
+  { sign: "Sagittarius", emoji: "♐", start: [11, 22], note: "adventurous, honest, and seeking meaning" },
+];
+
+// LIFE_PATH: numerology meanings keyed by reduced life-path number,
+// including the master numbers 11, 22, and 33.
+export const LIFE_PATH = {
+  1: "a path of leadership and bold new beginnings",
+  2: "a path of partnership, balance, and gentle diplomacy",
+  3: "a path of creativity, expression, and joy",
+  4: "a path of discipline, structure, and steady building",
+  5: "a path of freedom, change, and adventure",
+  6: "a path of love, responsibility, and care for others",
+  7: "a path of seeking, wisdom, and inner truth",
+  8: "a path of power, abundance, and worldly mastery",
+  9: "a path of compassion, completion, and service",
+  11: "a master path of intuition, inspiration, and spiritual insight",
+  22: "a master path of the visionary builder turning dreams into form",
+  33: "a master path of the compassionate teacher and healer",
+};
+
 export const DECK = [
   {
     id: "fool",

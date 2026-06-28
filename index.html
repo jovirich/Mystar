@@ -29,6 +29,40 @@
         <p class="app__subtitle">Shuffle the Major Arcana and let the cards speak.</p>
       </header>
 
+      <section class="seeker" aria-label="About the seeker">
+        <div class="control control--grow">
+          <label class="control__label" for="seeker-name"
+            >Your name <span class="control__opt">optional</span></label
+          >
+          <input
+            id="seeker-name"
+            class="input"
+            type="text"
+            placeholder="Who is this reading for?"
+            autocomplete="name"
+            maxlength="40"
+          />
+        </div>
+        <div class="control control--grow">
+          <label class="control__label" for="seeker-question"
+            >Your question <span class="control__opt">optional</span></label
+          >
+          <input
+            id="seeker-question"
+            class="input"
+            type="text"
+            placeholder="What do you seek guidance on?"
+            maxlength="120"
+          />
+        </div>
+        <div class="control">
+          <label class="control__label" for="seeker-dob"
+            >Birth date <span class="control__opt">optional</span></label
+          >
+          <input id="seeker-dob" class="input" type="date" max="2030-12-31" />
+        </div>
+      </section>
+
       <section class="controls" aria-label="Reading controls">
         <div class="control control--area">
           <label class="control__label" for="area-select">Area of life</label>
