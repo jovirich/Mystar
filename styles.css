@@ -109,24 +109,98 @@ body {
   margin: 0.4rem 0 0;
 }
 
-/* ---------- Seeker (optional personalization) ---------- */
-.seeker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: center;
+/* ---------- Two-column board ---------- */
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  gap: 1.4rem;
+  align-items: start;
+}
+
+.panel {
   background: var(--panel);
   border: 1px solid var(--panel-edge);
   border-radius: var(--radius);
-  padding: 1.1rem 1.25rem;
-  margin-bottom: 1.1rem;
+  padding: 1.4rem 1.5rem;
   box-shadow: var(--shadow);
   backdrop-filter: blur(6px);
 }
 
+.panel--right {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 1rem;
+  min-height: 360px;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: rise 0.5s ease both;
+}
+
+/* Keep the [hidden] attribute authoritative despite .stage's display. */
+.stage[hidden] {
+  display: none;
+}
+
+.panel__title {
+  font-family: "Cinzel", serif;
+  font-size: 1.4rem;
+  color: var(--gold);
+  margin: 0;
+}
+
+.panel__hint {
+  margin: -0.4rem 0 0.2rem;
+  color: var(--ink-dim);
+  font-style: italic;
+}
+
+.panel__actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 0.4rem;
+}
+
+/* Summary shown in the controls stage after personalization. */
+.seeker-summary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.8rem;
+  margin-bottom: 0.2rem;
+  border-bottom: 1px dashed var(--panel-edge);
+  font-family: "Cinzel", serif;
+  font-size: 0.95rem;
+  color: var(--gold-soft);
+}
+
+.link-btn {
+  font-family: "Cormorant Garamond", serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  color: var(--ink-dim);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.link-btn:hover {
+  color: var(--gold);
+}
+
 .control--grow {
-  flex: 1 1 220px;
-  min-width: 180px;
+  width: 100%;
 }
 
 .control__opt {
@@ -167,20 +241,6 @@ body {
 }
 
 /* ---------- Controls ---------- */
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.2rem;
-  align-items: flex-end;
-  justify-content: center;
-  background: var(--panel);
-  border: 1px solid var(--panel-edge);
-  border-radius: var(--radius);
-  padding: 1.25rem;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(6px);
-}
-
 .control {
   display: flex;
   flex-direction: column;
@@ -203,7 +263,7 @@ body {
   border: 1px solid var(--panel-edge);
   border-radius: 10px;
   padding: 0.55rem 0.8rem;
-  min-width: 200px;
+  width: 100%;
   cursor: pointer;
 }
 
@@ -243,8 +303,10 @@ body {
 /* Buttons */
 .control--actions {
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.6rem;
+  margin-top: 0.2rem;
 }
 
 .btn {
@@ -295,12 +357,109 @@ body {
   transform: none;
 }
 
+/* ---------- Deck (right panel) ---------- */
+.deck {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 210px;
+  padding: 0.6rem 0;
+}
+
+.deck-stack {
+  position: relative;
+  width: 130px;
+  height: 195px;
+  animation: deck-float 5s ease-in-out infinite;
+}
+
+.deck-card {
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  border: 1px solid var(--panel-edge);
+  background: var(--card-back);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
+}
+
+.deck-card::before {
+  content: "✶";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  color: var(--gold);
+  opacity: 0.55;
+  text-shadow: 0 0 12px rgba(231, 200, 115, 0.45);
+}
+
+.deck-card::after {
+  content: "";
+  position: absolute;
+  inset: 7px;
+  border: 1px solid rgba(231, 200, 115, 0.28);
+  border-radius: 9px;
+}
+
+/* Fan the stack out slightly so it reads as a deck. */
+.deck-card:nth-child(1) { transform: translate(0, 0) rotate(0deg); }
+.deck-card:nth-child(2) { transform: translate(2px, -2px) rotate(-2deg); }
+.deck-card:nth-child(3) { transform: translate(-2px, -4px) rotate(2deg); }
+.deck-card:nth-child(4) { transform: translate(3px, -6px) rotate(-3deg); }
+.deck-card:nth-child(5) { transform: translate(-3px, -8px) rotate(3deg); }
+.deck-card:nth-child(6) { transform: translate(0, -10px) rotate(0deg); }
+
+/* Shuffle: each card riffles out to a side and snaps back, staggered. */
+.deck-stack.is-shuffling {
+  animation: none;
+}
+.deck-stack.is-shuffling .deck-card {
+  animation: riffle 0.55s ease-in-out;
+}
+.deck-stack.is-shuffling .deck-card:nth-child(odd) {
+  animation-name: riffle-left;
+}
+.deck-stack.is-shuffling .deck-card:nth-child(2) { animation-delay: 0.04s; }
+.deck-stack.is-shuffling .deck-card:nth-child(3) { animation-delay: 0.08s; }
+.deck-stack.is-shuffling .deck-card:nth-child(4) { animation-delay: 0.12s; }
+.deck-stack.is-shuffling .deck-card:nth-child(5) { animation-delay: 0.16s; }
+.deck-stack.is-shuffling .deck-card:nth-child(6) { animation-delay: 0.20s; }
+
+/* Deal: stack lifts and dims briefly as cards leave for the spread. */
+.deck-stack.is-dealing {
+  animation: deal-lift 0.5s ease;
+}
+
+@keyframes deck-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes riffle {
+  0% { transform: translateX(0) rotate(0deg); }
+  45% { transform: translateX(46px) rotate(9deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes riffle-left {
+  0% { transform: translateX(0) rotate(0deg); }
+  45% { transform: translateX(-46px) rotate(-9deg); }
+  100% { transform: translateX(0) rotate(0deg); }
+}
+@keyframes deal-lift {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  50% { transform: translateY(-14px) scale(0.97); opacity: 0.75; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
 /* ---------- Deck status ---------- */
 .deck-status {
   text-align: center;
   font-style: italic;
   color: var(--ink-dim);
-  margin: 1.4rem 0 1.8rem;
+  margin: 0.2rem 0 0.4rem;
   letter-spacing: 0.02em;
 }
 
@@ -308,9 +467,13 @@ body {
 .spread {
   display: flex;
   flex-wrap: wrap;
-  gap: 1.6rem;
+  gap: 1.2rem;
   justify-content: center;
-  min-height: 4rem;
+  width: 100%;
+}
+
+.spread:empty {
+  display: none;
 }
 
 .card-slot {
@@ -318,8 +481,9 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
-  width: 200px;
-  max-width: 44vw;
+  width: 150px;
+  max-width: 40vw;
+  animation: deal-in 0.45s ease both;
 }
 
 .card-slot__position {
@@ -530,12 +694,23 @@ body {
   color: var(--ink);
 }
 
+@keyframes deal-in {
+  from { opacity: 0; transform: translateY(-34px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ---------- Responsive ---------- */
-@media (max-width: 560px) {
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
+/* Collapse to a single column below desktop width. */
+@media (max-width: 820px) {
+  .board {
+    grid-template-columns: 1fr;
   }
+  .panel--right {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 560px) {
   .control--actions {
     flex-wrap: wrap;
     justify-content: center;
@@ -551,13 +726,20 @@ body {
 /* ---------- Reduced motion ---------- */
 @media (prefers-reduced-motion: reduce) {
   .starfield,
-  .starfield::after {
+  .starfield::after,
+  .deck-stack,
+  .deck-stack.is-shuffling .deck-card,
+  .deck-stack.is-dealing {
+    animation: none;
+  }
+  .card-slot {
     animation: none;
   }
   .card__inner {
     transition: transform 0.001s linear;
   }
-  .reading {
+  .reading,
+  .stage {
     animation: none;
   }
   .btn:hover {

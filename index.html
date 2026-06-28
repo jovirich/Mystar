@@ -29,95 +29,131 @@
         <p class="app__subtitle">Shuffle the Major Arcana and let the cards speak.</p>
       </header>
 
-      <section class="seeker" aria-label="About the seeker">
-        <div class="control control--grow">
-          <label class="control__label" for="seeker-name"
-            >Your name <span class="control__opt">optional</span></label
-          >
-          <input
-            id="seeker-name"
-            class="input"
-            type="text"
-            placeholder="Who is this reading for?"
-            autocomplete="name"
-            maxlength="40"
-          />
-        </div>
-        <div class="control control--grow">
-          <label class="control__label" for="seeker-question"
-            >Your question <span class="control__opt">optional</span></label
-          >
-          <input
-            id="seeker-question"
-            class="input"
-            type="text"
-            placeholder="What do you seek guidance on?"
-            maxlength="120"
-          />
-        </div>
-        <div class="control">
-          <label class="control__label" for="seeker-dob"
-            >Birth date <span class="control__opt">optional</span></label
-          >
-          <input id="seeker-dob" class="input" type="date" max="2030-12-31" />
-        </div>
-      </section>
+      <div class="board">
+        <!-- LEFT CARD: personalization, then controls -->
+        <section class="panel panel--left" aria-label="Reading setup">
+          <!-- Stage 1: optional personalization -->
+          <div class="stage" id="stage-seeker">
+            <h2 class="panel__title">Before we begin</h2>
+            <p class="panel__hint">
+              Tell the cards who is asking — or skip straight to the draw.
+            </p>
 
-      <section class="controls" aria-label="Reading controls">
-        <div class="control control--area">
-          <label class="control__label" for="area-select">Area of life</label>
-          <select id="area-select" class="select" aria-label="Area of life"></select>
-        </div>
+            <div class="control control--grow">
+              <label class="control__label" for="seeker-name"
+                >Your name <span class="control__opt">optional</span></label
+              >
+              <input
+                id="seeker-name"
+                class="input"
+                type="text"
+                placeholder="Who is this reading for?"
+                autocomplete="name"
+                maxlength="40"
+              />
+            </div>
+            <div class="control control--grow">
+              <label class="control__label" for="seeker-question"
+                >Your question <span class="control__opt">optional</span></label
+              >
+              <input
+                id="seeker-question"
+                class="input"
+                type="text"
+                placeholder="What do you seek guidance on?"
+                maxlength="120"
+              />
+            </div>
+            <div class="control control--grow">
+              <label class="control__label" for="seeker-dob"
+                >Birth date <span class="control__opt">optional</span></label
+              >
+              <input id="seeker-dob" class="input" type="date" max="2030-12-31" />
+            </div>
 
-        <div class="control control--spread">
-          <span class="control__label" id="spread-label">Spread</span>
-          <div
-            class="segmented"
-            role="radiogroup"
-            aria-labelledby="spread-label"
-            id="spread-toggle"
-          >
-            <button
-              type="button"
-              class="segmented__btn is-active"
-              role="radio"
-              aria-checked="true"
-              data-spread="1"
-            >
-              Single card
-            </button>
-            <button
-              type="button"
-              class="segmented__btn"
-              role="radio"
-              aria-checked="false"
-              data-spread="3"
-            >
-              Past · Present · Future
-            </button>
+            <div class="panel__actions">
+              <button type="button" id="continue-btn" class="btn btn--gold">✨ Continue</button>
+              <button type="button" id="skip-btn" class="btn btn--ghost">Skip</button>
+            </div>
           </div>
-        </div>
 
-        <div class="control control--actions">
-          <button type="button" id="shuffle-btn" class="btn btn--ghost">🔀 Shuffle</button>
-          <button type="button" id="draw-btn" class="btn btn--gold">🃏 Draw</button>
-          <button
-            type="button"
-            id="mute-btn"
-            class="btn btn--icon"
-            aria-pressed="false"
-            title="Mute narration"
-          >
-            🔊 Voice on
-          </button>
-        </div>
-      </section>
+          <!-- Stage 2: reading controls (revealed after Continue/Skip) -->
+          <div class="stage" id="stage-controls" hidden>
+            <div class="seeker-summary" id="seeker-summary">
+              <span id="seeker-summary-text">Anonymous reading</span>
+              <button type="button" id="edit-details-btn" class="link-btn">Edit details</button>
+            </div>
 
-      <p class="deck-status" id="deck-status" role="status" aria-live="polite">
-        Deck ready · 22 cards · tap Shuffle to begin.
-      </p>
+            <div class="control control--area">
+              <label class="control__label" for="area-select">Area of life</label>
+              <select id="area-select" class="select" aria-label="Area of life"></select>
+            </div>
 
-      <section id="spread" class="spread" aria-label="Drawn cards"></section>
+            <div class="control control--spread">
+              <span class="control__label" id="spread-label">Spread</span>
+              <div
+                class="segmented"
+                role="radiogroup"
+                aria-labelledby="spread-label"
+                id="spread-toggle"
+              >
+                <button
+                  type="button"
+                  class="segmented__btn is-active"
+                  role="radio"
+                  aria-checked="true"
+                  data-spread="1"
+                >
+                  Single card
+                </button>
+                <button
+                  type="button"
+                  class="segmented__btn"
+                  role="radio"
+                  aria-checked="false"
+                  data-spread="3"
+                >
+                  Past · Present · Future
+                </button>
+              </div>
+            </div>
+
+            <div class="control control--actions">
+              <button type="button" id="shuffle-btn" class="btn btn--ghost">🔀 Shuffle</button>
+              <button type="button" id="draw-btn" class="btn btn--gold">🃏 Draw</button>
+              <button
+                type="button"
+                id="mute-btn"
+                class="btn btn--icon"
+                aria-pressed="false"
+                title="Mute narration"
+              >
+                🔊 Voice on
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- RIGHT CARD: the deck + drawn cards -->
+        <section class="panel panel--right" aria-label="The deck">
+          <div class="deck" id="deck">
+            <div class="deck-stack" id="deck-stack" aria-hidden="true">
+              <div class="deck-card"></div>
+              <div class="deck-card"></div>
+              <div class="deck-card"></div>
+              <div class="deck-card"></div>
+              <div class="deck-card"></div>
+              <div class="deck-card"></div>
+            </div>
+          </div>
+
+          <p class="deck-status" id="deck-status" role="status" aria-live="polite">
+            Deck ready · 22 cards · tap Shuffle to begin.
+          </p>
+
+          <section id="spread" class="spread" aria-label="Drawn cards"></section>
+        </section>
+      </div>
 
       <section id="reading" class="reading" aria-live="polite" hidden></section>
     </main>

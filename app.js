@@ -24,7 +24,16 @@ const els = {
   seekerName: document.getElementById("seeker-name"),
   seekerQuestion: document.getElementById("seeker-question"),
   seekerDob: document.getElementById("seeker-dob"),
+  stageSeeker: document.getElementById("stage-seeker"),
+  stageControls: document.getElementById("stage-controls"),
+  seekerSummaryText: document.getElementById("seeker-summary-text"),
+  continueBtn: document.getElementById("continue-btn"),
+  skipBtn: document.getElementById("skip-btn"),
+  editDetailsBtn: document.getElementById("edit-details-btn"),
+  deckStack: document.getElementById("deck-stack"),
 };
+
+const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 // Read the optional "about the seeker" fields. The draw never depends on
 // these — they only personalise the reading when provided.
@@ -105,11 +114,45 @@ function shuffleDeck() {
   els.spread.innerHTML = "";
   els.reading.hidden = true;
   els.reading.innerHTML = "";
+  animateDeck("is-shuffling", 600);
   setStatus(`Deck shuffled · ${deck.length} cards · draw when you're ready.`);
 }
 
 function setStatus(text) {
   els.deckStatus.textContent = text;
+}
+
+// Briefly play a deck animation class (shuffle riffle or deal lift).
+function animateDeck(cls, duration) {
+  if (prefersReducedMotion) return;
+  els.deckStack.classList.remove(cls);
+  // Force reflow so the animation restarts even on rapid repeat clicks.
+  void els.deckStack.offsetWidth;
+  els.deckStack.classList.add(cls);
+  setTimeout(() => els.deckStack.classList.remove(cls), duration);
+}
+
+// --- Stage navigation (personalization <-> controls) ---
+function showControls() {
+  updateSeekerSummary();
+  els.stageSeeker.hidden = true;
+  els.stageControls.hidden = false;
+}
+
+function showSeeker() {
+  els.stageControls.hidden = true;
+  els.stageSeeker.hidden = false;
+}
+
+function updateSeekerSummary() {
+  const { name, question } = getSeeker();
+  if (name) {
+    els.seekerSummaryText.textContent = `Reading for ${name}`;
+  } else if (question) {
+    els.seekerSummaryText.textContent = "Reading your question";
+  } else {
+    els.seekerSummaryText.textContent = "Anonymous reading";
+  }
 }
 
 // --- Drawing ---
@@ -129,6 +172,7 @@ function draw() {
   const n = state.spread;
   state.drawn = drawCards(n);
 
+  animateDeck("is-dealing", 500);
   renderFaceDown(state.drawn);
   setStatus(
     n === 1
@@ -360,6 +404,16 @@ function bindEvents() {
   els.shuffleBtn.addEventListener("click", shuffleDeck);
   els.drawBtn.addEventListener("click", draw);
   els.muteBtn.addEventListener("click", toggleMute);
+
+  // Stage 1 -> Stage 2: Continue keeps entered details; Skip clears them.
+  els.continueBtn.addEventListener("click", showControls);
+  els.skipBtn.addEventListener("click", () => {
+    els.seekerName.value = "";
+    els.seekerQuestion.value = "";
+    els.seekerDob.value = "";
+    showControls();
+  });
+  els.editDetailsBtn.addEventListener("click", showSeeker);
 }
 
 // --- Init ---

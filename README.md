@@ -9,6 +9,11 @@ No build step. No dependencies. Just plain HTML, CSS, and vanilla JavaScript
 
 ## Features
 
+- **Two-column "board" (desktop)** — a left card for optional personalization
+  (name, question, birth date) with a **Skip**; once you Continue or Skip it
+  swaps to the shuffle/draw controls. The right card holds the deck, which
+  riffles when you shuffle and deals cards into the spread when you draw.
+  Collapses to a single column on narrow screens.
 - **Six areas of life** — General, Love, Career, Money, Health, and Spirit,
   each with its own hand-written meaning for every card.
 - **Two spreads** — a Single card, or a Past · Present · Future three-card spread.
